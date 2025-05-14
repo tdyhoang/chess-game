@@ -3,9 +3,9 @@ package org.group13.chessgame.model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Rook extends Piece {
-    public Rook(PieceColor color) {
-        super(color, PieceType.ROOK);
+public class Bishop extends Piece {
+    public Bishop(PieceColor color) {
+        super(color, PieceType.BISHOP);
     }
 
     @Override
@@ -14,7 +14,9 @@ public class Rook extends Piece {
         Board board = game.getBoard();
         Square startSquare = board.getSquare(currentRow, currentCol);
 
-        int[][] directions = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}}; // Right, Left, Down, Up
+        int[][] directions = {
+                {-1, -1}, {-1, 1}, {1, -1}, {1, 1} // up-left, up-right, down-left, down-right
+        };
 
         for (int[] dir : directions) {
             for (int i = 1; i < Board.SIZE; i++) {

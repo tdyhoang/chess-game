@@ -16,12 +16,12 @@ public class Pawn extends Piece {
 
         int oneStepRow = currentRow + direction;
         if (Board.isValidCoordinate(oneStepRow, currentCol) && board.getSquare(oneStepRow, currentCol).isEmpty()) {
-            addPawnMove(moves, board.getSquare(currentRow, currentCol), board.getSquare(oneStepRow, currentCol), this.color);
+            addPawnMove(moves, board.getSquare(currentRow, currentCol), board.getSquare(oneStepRow, currentCol), this.color, this.hasMoved);
 
             if (!this.hasMoved()) {
                 int twoStepsRow = currentRow + 2 * direction;
                 if (Board.isValidCoordinate(twoStepsRow, currentCol) && board.getSquare(twoStepsRow, currentCol).isEmpty()) {
-                    moves.add(new Move(board.getSquare(currentRow, currentCol), board.getSquare(twoStepsRow, currentCol), this));
+                    moves.add(new Move(board.getSquare(currentRow, currentCol), board.getSquare(twoStepsRow, currentCol), this, this.hasMoved));
                 }
             }
         }
@@ -31,7 +31,7 @@ public class Pawn extends Piece {
             if (Board.isValidCoordinate(oneStepRow, captureCol)) {
                 Square targetSquare = board.getSquare(oneStepRow, captureCol);
                 if (targetSquare.hasPiece() && targetSquare.getPiece().getColor() != this.color) {
-                    addPawnMove(moves, board.getSquare(currentRow, currentCol), targetSquare, this.color);
+                    addPawnMove(moves, board.getSquare(currentRow, currentCol), targetSquare, this.color, this.hasMoved);
                 }
             }
         }
@@ -47,7 +47,7 @@ public class Pawn extends Piece {
             Square capturedPawnSquare = lastMove.getEndSquare();
 
             if (targetSquareForMove != null && targetSquareForMove.isEmpty()) {
-                Move enPassantMove = new Move(board.getSquare(currentRow, currentCol), targetSquareForMove, this);
+                Move enPassantMove = new Move(board.getSquare(currentRow, currentCol), targetSquareForMove, this, this.hasMoved);
                 enPassantMove.setEnPassantMove(true);
                 enPassantMove.setPieceCaptured(capturedPawnSquare.getPiece());
                 enPassantMove.setEnPassantCaptureSquare(capturedPawnSquare);
@@ -58,15 +58,15 @@ public class Pawn extends Piece {
         return moves;
     }
 
-    private void addPawnMove(List<Move> moves, Square startSquare, Square endSquare, PieceColor pawnColor) {
+    private void addPawnMove(List<Move> moves, Square startSquare, Square endSquare, PieceColor pawnColor, boolean originalHasMoved) {
         int promotionRank = (pawnColor == PieceColor.WHITE) ? 0 : (Board.SIZE - 1);
         if (endSquare.getRow() == promotionRank) {
-            moves.add(new Move(startSquare, endSquare, this, PieceType.QUEEN));
-            moves.add(new Move(startSquare, endSquare, this, PieceType.ROOK));
-            moves.add(new Move(startSquare, endSquare, this, PieceType.BISHOP));
-            moves.add(new Move(startSquare, endSquare, this, PieceType.KNIGHT));
+            moves.add(new Move(startSquare, endSquare, this, originalHasMoved, PieceType.QUEEN));
+            moves.add(new Move(startSquare, endSquare, this, originalHasMoved, PieceType.ROOK));
+            moves.add(new Move(startSquare, endSquare, this, originalHasMoved, PieceType.BISHOP));
+            moves.add(new Move(startSquare, endSquare, this, originalHasMoved, PieceType.KNIGHT));
         } else {
-            moves.add(new Move(startSquare, endSquare, this));
+            moves.add(new Move(startSquare, endSquare, this, originalHasMoved));
         }
     }
 }

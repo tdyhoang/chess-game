@@ -1,5 +1,9 @@
 package org.group13.chessgame.model;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class Game {
     private Board board;
     private Player whitePlayer;
@@ -232,7 +236,9 @@ public class Game {
                     List<Move> pseudoMoves = piece.getPseudoLegalMoves(this, r, c);
 
                     for (Move pseudoMove : pseudoMoves) {
-                        // Piece originalCapturedPiece = pseudoMove.getPieceCaptured();
+                        // Piece pieceToMove = s.getPiece();
+                        // boolean originalHasMovedStatus = pieceToMove.hasMoved();
+                        // Piece originalCaptured = pseudoMove.getEndSquare().getPiece();
 
                         board.applyMove(pseudoMove);
                         if (!isKingInCheck(playerColor)) {
@@ -268,13 +274,16 @@ public class Game {
             if (board.getSquare(kingRow, 5).isEmpty() && board.getSquare(kingRow, 6).isEmpty() &&
                     !isSquareAttackedBy(board.getSquare(kingRow, 5), playerColor.opposite()) &&
                     !isSquareAttackedBy(board.getSquare(kingRow, 6), playerColor.opposite())) {
+                Piece king = kingSquare.getPiece();
+                Piece rook = kingsideRookSquare.getPiece();
 
                 Square kingEndSquare = board.getSquare(kingRow, 6);
                 Square rookEndSquare = board.getSquare(kingRow, 5);
-                Move castlingMove = new Move(kingSquare, kingEndSquare, kingSquare.getPiece());
+                Move castlingMove = new Move(kingSquare, kingEndSquare, king, king.hasMoved());
                 castlingMove.setCastlingMove(true);
                 castlingMove.setRookStartSquareForCastling(kingsideRookSquare);
                 castlingMove.setRookEndSquareForCastling(rookEndSquare);
+                castlingMove.setRookInfoForCastlingUndo(rook, rook.hasMoved());
                 legalMoves.add(castlingMove);
             }
         }
@@ -287,13 +296,16 @@ public class Game {
                     board.getSquare(kingRow, 3).isEmpty() &&
                     !isSquareAttackedBy(board.getSquare(kingRow, 3), playerColor.opposite()) &&
                     !isSquareAttackedBy(board.getSquare(kingRow, 2), playerColor.opposite())) {
+                Piece king = kingSquare.getPiece();
+                Piece rook = queensideRookSquare.getPiece();
 
                 Square kingEndSquare = board.getSquare(kingRow, 2);
                 Square rookEndSquare = board.getSquare(kingRow, 3);
-                Move castlingMove = new Move(kingSquare, kingEndSquare, kingSquare.getPiece());
+                Move castlingMove = new Move(kingSquare, kingEndSquare, king, king.hasMoved());
                 castlingMove.setCastlingMove(true);
                 castlingMove.setRookStartSquareForCastling(queensideRookSquare);
                 castlingMove.setRookEndSquareForCastling(rookEndSquare);
+                castlingMove.setRookInfoForCastlingUndo(rook, rook.hasMoved());
                 legalMoves.add(castlingMove);
             }
         }
@@ -328,7 +340,7 @@ public class Game {
                             bishopColorSquare = ((r + c) % 2 == 0) ? PieceColor.WHITE : PieceColor.BLACK;
                         } else {
                             PieceColor currentBishopColorSquare = ((r + c) % 2 == 0) ? PieceColor.WHITE : PieceColor.BLACK;
-                            if (bishopColorSquare == currentBishopColorSquare && (p.getType() == PieceType.BISHOP && countPieces(PieceType.BISHOP) == 2) ){
+                            if (bishopColorSquare == currentBishopColorSquare && (p.getType() == PieceType.BISHOP && countPiecesOnBoard(PieceType.BISHOP) == 2) ){
                             } else if (bishopColorSquare != currentBishopColorSquare) {
                                 bishopColorSquare = null;
                             }
@@ -378,6 +390,19 @@ public class Game {
         int count = 0;
         for (Piece p : pieces) {
             if (p.getType() == type) count++;
+        }
+        return count;
+    }
+
+    private int countPiecesOnBoard(PieceType type) {
+        int count = 0;
+        for (int r = 0; r < Board.SIZE; r++) {
+            for (int c = 0; c < Board.SIZE; c++) {
+                Piece p = board.getPiece(r, c);
+                if (p != null && p.getType() == type) {
+                    count++;
+                }
+            }
         }
         return count;
     }

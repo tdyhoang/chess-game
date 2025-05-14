@@ -129,37 +129,38 @@ public class Board {
     public void undoMove(Move move) {
         Square start = move.getStartSquare();
         Square end = move.getEndSquare();
-        Piece movedPiece = end.getPiece();
+        Piece originalPieceThatMoved = move.getPieceMoved();
 
         if (move.isPromotion()) {
-            start.setPiece(new Pawn(move.getPieceMoved().getColor()));
-            if (move.getPieceMoved() instanceof Pawn) {
-                start.getPiece().setHasMoved(move.getPieceMoved().hasMoved());
-            }
+            Pawn originalPawn = new Pawn(originalPieceThatMoved.getColor());
+            originalPawn.setHasMoved(move.getPieceMovedOriginalHasMoved());
+            start.setPiece(originalPawn);
         } else {
-            start.setPiece(movedPiece);
+            originalPieceThatMoved.setHasMoved(move.getPieceMovedOriginalHasMoved());
+            start.setPiece(originalPieceThatMoved);
         }
-
-        end.setPiece(move.getPieceCaptured());
 
         if (move.isCastlingMove()) {
             Square rookStartOriginal = move.getRookStartSquareForCastling();
             Square rookEndOriginal = move.getRookEndSquareForCastling();
-            Piece rook = rookEndOriginal.getPiece(); // Xe đang ở vị trí mới
+            Piece rook = move.getPieceOnRookStartForCastling();
             if (rook != null && rook.getType() == PieceType.ROOK) {
                 rookEndOriginal.setPiece(null);
                 rookStartOriginal.setPiece(rook);
-                // rook.setHasMoved(false);
+                rook.setHasMoved(move.getRookOriginalHasMoved());
+            } else {
+                System.err.println("Lỗi undo castling: Không có thông tin Xe gốc.");
             }
         }
 
         if (move.isEnPassantMove()) {
-            Square enPassantCapturedPawnSquare = move.getEnPassantCaptureSquare();
-            Piece capturedPawn = move.getPieceCaptured();
-            if (enPassantCapturedPawnSquare != null && capturedPawn != null) {
-                enPassantCapturedPawnSquare.setPiece(capturedPawn);
-                end.setPiece(null);
+            end.setPiece(null);
+            Square capturedPawnSquare = move.getEnPassantCaptureSquare();
+            if (capturedPawnSquare != null && move.getPieceCaptured() != null) {
+                capturedPawnSquare.setPiece(move.getPieceCaptured());
             }
+        } else {
+            end.setPiece(move.getPieceCaptured());
         }
     }
 

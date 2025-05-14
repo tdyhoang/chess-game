@@ -5,6 +5,9 @@ public class Move {
     private final Square endSquare;
     private final Piece pieceMoved;
     private Piece pieceCaptured;
+    private final boolean pieceMovedOriginalHasMoved;
+    private Piece pieceOnRookStartForCastling;
+    private boolean rookOriginalHasMoved;
 
     private boolean isCastlingMove = false;
     private Square rookStartSquareForCastling = null;
@@ -13,10 +16,11 @@ public class Move {
     private Square enPassantCaptureSquare = null;
     private PieceType promotionPieceType = null;
 
-    public Move(Square startSquare, Square endSquare, Piece pieceMoved) {
+    public Move(Square startSquare, Square endSquare, Piece pieceMoved, boolean pieceMovedOriginalHasMoved) {
         this.startSquare = startSquare;
         this.endSquare = endSquare;
         this.pieceMoved = pieceMoved;
+        this.pieceMovedOriginalHasMoved = pieceMovedOriginalHasMoved;
         if (endSquare.hasPiece()) {
             this.pieceCaptured = endSquare.getPiece();
         } else {
@@ -24,8 +28,8 @@ public class Move {
         }
     }
 
-    public Move(Square startSquare, Square endSquare, Piece pieceMoved, PieceType promotionPieceType) {
-        this(startSquare, endSquare, pieceMoved);
+    public Move(Square startSquare, Square endSquare, Piece pieceMoved, boolean pieceMovedOriginalHasMoved, PieceType promotionPieceType) {
+        this(startSquare, endSquare, pieceMoved, pieceMovedOriginalHasMoved);
         this.promotionPieceType = promotionPieceType;
     }
 
@@ -48,6 +52,17 @@ public class Move {
     public void setPieceCaptured(Piece pieceCaptured) {
         this.pieceCaptured = pieceCaptured;
     }
+
+    public boolean getPieceMovedOriginalHasMoved() {
+        return pieceMovedOriginalHasMoved;
+    }
+
+    public void setRookInfoForCastlingUndo(Piece rook, boolean rookOriginalHasMoved) {
+        this.pieceOnRookStartForCastling = rook;
+        this.rookOriginalHasMoved = rookOriginalHasMoved;
+    }
+    public Piece getPieceOnRookStartForCastling() { return pieceOnRookStartForCastling; }
+    public boolean getRookOriginalHasMoved() { return rookOriginalHasMoved; }
 
     public boolean isPromotion() {
         return promotionPieceType != null;
