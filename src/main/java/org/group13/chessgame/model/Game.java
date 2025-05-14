@@ -90,51 +90,53 @@ public class Game {
         return (kingColor == PieceColor.WHITE) ? whiteKingSquare : blackKingSquare;
     }
 
-    public boolean makeMove(Move move) {
-        Piece pieceToMove = move.getStartSquare().getPiece();
-        if (pieceToMove == null || pieceToMove.getColor() != currentPlayer.getColor()) {
+    public boolean makeMove(Move moveFromUI) {
+        Piece pieceToMoveFromUI = moveFromUI.getStartSquare().getPiece();
+        if (pieceToMoveFromUI == null || pieceToMoveFromUI.getColor() != currentPlayer.getColor()) {
             System.err.println("Nước đi không hợp lệ: Không phải quân của bạn hoặc ô trống.");
             return false;
         }
 
         List<Move> legalMoves = getAllLegalMovesForPlayer(currentPlayer.getColor());
-        boolean isValidAmongLegal = false;
+        Move actualMoveToMake = null;
+
         for (Move legalMv : legalMoves) {
-            if (legalMv.equals(move)) {
-                if (move.isPromotion() && legalMv.isPromotion() && legalMv.getPieceCaptured() != null) {
-                    move.setPieceCaptured(legalMv.getPieceCaptured());
+            if (legalMv.getStartSquare() == moveFromUI.getStartSquare() &&
+                    legalMv.getEndSquare() == moveFromUI.getEndSquare() &&
+                    legalMv.getPromotionPieceType() == moveFromUI.getPromotionPieceType()) {
+
+                if (legalMv.isCastlingMove() && pieceToMoveFromUI.getType() == PieceType.KING &&
+                        Math.abs(legalMv.getEndSquare().getCol() - legalMv.getStartSquare().getCol()) == 2) {
+                    actualMoveToMake = legalMv;
+                    break;
                 }
-                if (move.isEnPassantMove() && legalMv.isEnPassantMove()) {
-                    move.setPieceCaptured(legalMv.getPieceCaptured());
-                    move.setEnPassantCaptureSquare(legalMv.getEnPassantCaptureSquare());
+                if (!legalMv.isCastlingMove()) {
+                    actualMoveToMake = legalMv;
+                    break;
                 }
-                if (move.isCastlingMove() && legalMv.isCastlingMove()) {
-                    move.setRookStartSquareForCastling(legalMv.getRookStartSquareForCastling());
-                    move.setRookEndSquareForCastling(legalMv.getRookEndSquareForCastling());
-                }
-                isValidAmongLegal = true;
-                break;
             }
         }
 
-        if (!isValidAmongLegal) {
-            System.err.println("Nước đi không hợp lệ: " + move.toString() + " không có trong danh sách nước đi hợp lệ.");
+        if (actualMoveToMake == null) {
+            System.err.println("Nước đi không hợp lệ: " + moveFromUI.toString() + " không có trong danh sách nước đi hợp lệ hoặc thông tin không khớp.");
+            System.err.println("Legal moves for " + currentPlayer.getColor() + ":");
+            for(Move m : legalMoves) System.err.println("  " + m.toString());
             return false;
         }
 
-        board.applyMove(move);
+        board.applyMove(actualMoveToMake);
 
-        if (pieceToMove.getType() == PieceType.KING) {
-            if (pieceToMove.getColor() == PieceColor.WHITE) {
-                whiteKingSquare = move.getEndSquare();
+        if (actualMoveToMake.getPieceMoved().getType() == PieceType.KING) {
+            if (actualMoveToMake.getPieceMoved().getColor() == PieceColor.WHITE) {
+                whiteKingSquare = actualMoveToMake.getEndSquare();
             } else {
-                blackKingSquare = move.getEndSquare();
+                blackKingSquare = actualMoveToMake.getEndSquare();
             }
         }
 
-        moveHistory.add(move);
+        moveHistory.add(actualMoveToMake);
 
-        if (pieceToMove.getType() == PieceType.PAWN || move.getPieceCaptured() != null) {
+        if (actualMoveToMake.getPieceMoved().getType() == PieceType.PAWN || actualMoveToMake.getPieceCaptured() != null) {
             halfMoveClock = 0;
         } else {
             halfMoveClock++;
