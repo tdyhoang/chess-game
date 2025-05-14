@@ -68,6 +68,10 @@ public class Game {
         return moveHistory.get(moveHistory.size() - 1);
     }
 
+    public List<Move> getMoveHistory() {
+        return moveHistory;
+    }
+
     private void updateKingSquares() {
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {

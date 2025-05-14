@@ -100,11 +100,20 @@ public class Move {
                 startSquare.getCol() == move.startSquare.getCol() &&
                 endSquare.getRow() == move.endSquare.getRow() &&
                 endSquare.getCol() == move.endSquare.getCol() &&
-                promotionPieceType == move.promotionPieceType;
+                promotionPieceType == move.promotionPieceType &&
+                isCastlingMove == move.isCastlingMove &&
+                isEnPassantMove == move.isEnPassantMove;
     }
 
     @Override
     public int hashCode() {
-        return 31 * (startSquare.getRow() * 8 + startSquare.getCol()) + (endSquare.getRow() * 8 + endSquare.getCol()) + (promotionPieceType != null ? promotionPieceType.hashCode() : 0);
+        int result = startSquare.getRow();
+        result = 31 * result + startSquare.getCol();
+        result = 31 * result + endSquare.getRow();
+        result = 31 * result + endSquare.getCol();
+        result = 31 * result + (promotionPieceType != null ? promotionPieceType.hashCode() : 0);
+        result = 31 * result + (isCastlingMove ? 1 : 0);
+        result = 31 * result + (isEnPassantMove ? 1 : 0);
+        return result;
     }
 }
