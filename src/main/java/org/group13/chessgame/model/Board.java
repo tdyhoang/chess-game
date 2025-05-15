@@ -1,8 +1,8 @@
 package org.group13.chessgame.model;
 
 public class Board {
-    private final Square[][] squares;
     public static final int SIZE = 8;
+    private final Square[][] squares;
 
     public Board() {
         squares = new Square[SIZE][SIZE];
@@ -11,6 +11,10 @@ public class Board {
                 squares[row][col] = new Square(row, col);
             }
         }
+    }
+
+    public static boolean isValidCoordinate(int row, int col) {
+        return row >= 0 && row < SIZE && col >= 0 && col < SIZE;
     }
 
     public Square getSquare(int row, int col) {
@@ -30,10 +34,6 @@ public class Board {
         if (square != null) {
             square.setPiece(piece);
         }
-    }
-
-    public static boolean isValidCoordinate(int row, int col) {
-        return row >= 0 && row < SIZE && col >= 0 && col < SIZE;
     }
 
     public void initializeBoard() {
@@ -88,10 +88,18 @@ public class Board {
         if (move.isPromotion()) {
             Piece promotedPiece = null;
             switch (move.getPromotionPieceType()) {
-                case QUEEN: promotedPiece = new Queen(movedPiece.getColor()); break;
-                case ROOK: promotedPiece = new Rook(movedPiece.getColor()); break;
-                case BISHOP: promotedPiece = new Bishop(movedPiece.getColor()); break;
-                case KNIGHT: promotedPiece = new Knight(movedPiece.getColor()); break;
+                case QUEEN:
+                    promotedPiece = new Queen(movedPiece.getColor());
+                    break;
+                case ROOK:
+                    promotedPiece = new Rook(movedPiece.getColor());
+                    break;
+                case BISHOP:
+                    promotedPiece = new Bishop(movedPiece.getColor());
+                    break;
+                case KNIGHT:
+                    promotedPiece = new Knight(movedPiece.getColor());
+                    break;
                 default:
                     System.err.println("Loại quân phong cấp không hợp lệ!");
                     promotedPiece = new Queen(movedPiece.getColor());

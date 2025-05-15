@@ -14,10 +14,7 @@ public class Knight extends Piece {
         Board board = game.getBoard();
         Square startSquare = board.getSquare(currentRow, currentCol);
 
-        int[][] knightMoves = {
-                {-2, -1}, {-2, 1}, {-1, -2}, {-1, 2},
-                {1, -2}, {1, 2}, {2, -1}, {2, 1}
-        };
+        int[][] knightMoves = {{-2, -1}, {-2, 1}, {-1, -2}, {-1, 2}, {1, -2}, {1, 2}, {2, -1}, {2, 1}};
 
         for (int[] moveOffset : knightMoves) {
             int nextRow = currentRow + moveOffset[0];

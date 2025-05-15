@@ -14,9 +14,7 @@ public class Bishop extends Piece {
         Board board = game.getBoard();
         Square startSquare = board.getSquare(currentRow, currentCol);
 
-        int[][] directions = {
-                {-1, -1}, {-1, 1}, {1, -1}, {1, 1} // up-left, up-right, down-left, down-right
-        };
+        int[][] directions = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
 
         for (int[] dir : directions) {
             for (int i = 1; i < Board.SIZE; i++) {

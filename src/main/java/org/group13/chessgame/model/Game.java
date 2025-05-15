@@ -2,33 +2,20 @@ package org.group13.chessgame.model;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class Game {
-    private Board board;
-    private Player whitePlayer;
-    private Player blackPlayer;
+    private final Board board;
+    private final Player whitePlayer;
+    private final Player blackPlayer;
+    private final List<Move> moveHistory;
+    // threefold repetition
+    private final List<Long> positionHistoryHash;
     private Player currentPlayer;
     private GameState gameState;
-    private List<Move> moveHistory;
     private Square whiteKingSquare;
     private Square blackKingSquare;
-
     // 50-move rule
     private int halfMoveClock;
-    // threefold repetition
-    private List<Long> positionHistoryHash;
-
-    public enum GameState {
-        ACTIVE,
-        CHECK,
-        WHITE_WINS_CHECKMATE,
-        BLACK_WINS_CHECKMATE,
-        STALEMATE_DRAW,
-        FIFTY_MOVE_DRAW,
-        THREEFOLD_REPETITION_DRAW,
-        INSUFFICIENT_MATERIAL_DRAW
-    }
 
     public Game() {
         this.board = new Board();
@@ -72,6 +59,41 @@ public class Game {
         return moveHistory;
     }
 
+    public void setupBoardForTest(List<PiecePlacement> placements, PieceColor playerWhoseTurnItIs) {
+        for (int r = 0; r < Board.SIZE; r++) {
+            for (int c = 0; c < Board.SIZE; c++) {
+                board.setPiece(r, c, null);
+            }
+        }
+        if (placements != null) {
+            for (PiecePlacement p : placements) {
+                board.setPiece(p.row, p.col, p.piece);
+                if (p.piece != null) {
+                    p.piece.setHasMoved(p.piece.hasMoved());
+                }
+            }
+        }
+        updateKingSquares();
+        setCurrentPlayerColorForTest(playerWhoseTurnItIs);
+        // updateGameState();
+    }
+
+    public void setCurrentPlayerColorForTest(PieceColor color) {
+        if (color == PieceColor.WHITE) {
+            this.currentPlayer = whitePlayer;
+        } else {
+            this.currentPlayer = blackPlayer;
+        }
+    }
+
+    public Player getWhitePlayerInstance() {
+        return whitePlayer;
+    }
+
+    public Player getBlackPlayerInstance() {
+        return blackPlayer;
+    }
+
     private void updateKingSquares() {
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {
@@ -105,12 +127,9 @@ public class Game {
         Move actualMoveToMake = null;
 
         for (Move legalMv : legalMoves) {
-            if (legalMv.getStartSquare() == moveFromUI.getStartSquare() &&
-                    legalMv.getEndSquare() == moveFromUI.getEndSquare() &&
-                    legalMv.getPromotionPieceType() == moveFromUI.getPromotionPieceType()) {
+            if (legalMv.getStartSquare() == moveFromUI.getStartSquare() && legalMv.getEndSquare() == moveFromUI.getEndSquare() && legalMv.getPromotionPieceType() == moveFromUI.getPromotionPieceType()) {
 
-                if (legalMv.isCastlingMove() && pieceToMoveFromUI.getType() == PieceType.KING &&
-                        Math.abs(legalMv.getEndSquare().getCol() - legalMv.getStartSquare().getCol()) == 2) {
+                if (legalMv.isCastlingMove() && pieceToMoveFromUI.getType() == PieceType.KING && Math.abs(legalMv.getEndSquare().getCol() - legalMv.getStartSquare().getCol()) == 2) {
                     actualMoveToMake = legalMv;
                     break;
                 }
@@ -122,9 +141,9 @@ public class Game {
         }
 
         if (actualMoveToMake == null) {
-            System.err.println("Nước đi không hợp lệ: " + moveFromUI.toString() + " không có trong danh sách nước đi hợp lệ hoặc thông tin không khớp.");
+            System.err.println("Nước đi không hợp lệ: " + moveFromUI + " không có trong danh sách nước đi hợp lệ hoặc thông tin không khớp.");
             System.err.println("Legal moves for " + currentPlayer.getColor() + ":");
-            for(Move m : legalMoves) System.err.println("  " + m.toString());
+            for (Move m : legalMoves) System.err.println("  " + m.toString());
             return false;
         }
 
@@ -207,14 +226,17 @@ public class Game {
                 Square s = board.getSquare(r, c);
                 if (s.hasPiece() && s.getPiece().getColor() == attackerColor) {
                     Piece attacker = s.getPiece();
-                    List<Move> pseudoMoves = attacker.getPseudoLegalMoves(this, r, c);
-                    for (Move pseudoMove : pseudoMoves) {
-                        if (attacker.getType() == PieceType.PAWN) {
-                            if (pseudoMove.getEndSquare() == targetSquare &&
-                                    pseudoMove.getStartSquare().getCol() != pseudoMove.getEndSquare().getCol()) {
+                    if (attacker.getType() == PieceType.PAWN) {
+                        int direction = (attacker.getColor() == PieceColor.WHITE) ? -1 : 1;
+                        int attackRow = s.getRow() + direction;
+                        if (attackRow == targetSquare.getRow()) {
+                            if (s.getCol() - 1 == targetSquare.getCol() || s.getCol() + 1 == targetSquare.getCol()) {
                                 return true;
                             }
-                        } else {
+                        }
+                    } else {
+                        List<Move> pseudoMoves = attacker.getPseudoLegalMoves(this, r, c);
+                        for (Move pseudoMove : pseudoMoves) {
                             if (pseudoMove.getEndSquare() == targetSquare) {
                                 return true;
                             }
@@ -228,11 +250,11 @@ public class Game {
 
     public List<Move> getAllLegalMovesForPlayer(PieceColor playerColor) {
         List<Move> legalMoves = new ArrayList<>();
-        if (gameState == GameState.BLACK_WINS_CHECKMATE || gameState == GameState.WHITE_WINS_CHECKMATE ||
-                gameState == GameState.STALEMATE_DRAW || gameState == GameState.FIFTY_MOVE_DRAW ||
-                gameState == GameState.THREEFOLD_REPETITION_DRAW || gameState == GameState.INSUFFICIENT_MATERIAL_DRAW) {
+        if (gameState == GameState.BLACK_WINS_CHECKMATE || gameState == GameState.WHITE_WINS_CHECKMATE || gameState == GameState.STALEMATE_DRAW || gameState == GameState.FIFTY_MOVE_DRAW || gameState == GameState.THREEFOLD_REPETITION_DRAW || gameState == GameState.INSUFFICIENT_MATERIAL_DRAW) {
             return legalMoves;
         }
+
+        Square originalKingSquare = getKingSquare(playerColor);
 
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {
@@ -247,10 +269,27 @@ public class Game {
                         // Piece originalCaptured = pseudoMove.getEndSquare().getPiece();
 
                         board.applyMove(pseudoMove);
+
+                        if (piece.getType() == PieceType.KING) {
+                            if (playerColor == PieceColor.WHITE) {
+                                whiteKingSquare = pseudoMove.getEndSquare();
+                            } else {
+                                blackKingSquare = pseudoMove.getEndSquare();
+                            }
+                        }
+
                         if (!isKingInCheck(playerColor)) {
                             legalMoves.add(pseudoMove);
                         }
                         board.undoMove(pseudoMove);
+
+                        if (piece.getType() == PieceType.KING) {
+                            if (playerColor == PieceColor.WHITE) {
+                                whiteKingSquare = originalKingSquare;
+                            } else {
+                                blackKingSquare = originalKingSquare;
+                            }
+                        }
 
                         // if (originalCapturedPiece != null) {
                         //    pseudoMove.getEndSquare().setPiece(originalCapturedPiece);
@@ -261,6 +300,13 @@ public class Game {
                 }
             }
         }
+
+        if (playerColor == PieceColor.WHITE) {
+            whiteKingSquare = originalKingSquare;
+        } else {
+            blackKingSquare = originalKingSquare;
+        }
+
         addCastlingMoves(legalMoves, playerColor);
 
         return legalMoves;
@@ -275,11 +321,8 @@ public class Game {
         int kingRow = kingSquare.getRow();
 
         Square kingsideRookSquare = board.getSquare(kingRow, Board.SIZE - 1);
-        if (kingsideRookSquare.hasPiece() && kingsideRookSquare.getPiece().getType() == PieceType.ROOK &&
-                !kingsideRookSquare.getPiece().hasMoved()) {
-            if (board.getSquare(kingRow, 5).isEmpty() && board.getSquare(kingRow, 6).isEmpty() &&
-                    !isSquareAttackedBy(board.getSquare(kingRow, 5), playerColor.opposite()) &&
-                    !isSquareAttackedBy(board.getSquare(kingRow, 6), playerColor.opposite())) {
+        if (kingsideRookSquare.hasPiece() && kingsideRookSquare.getPiece().getType() == PieceType.ROOK && !kingsideRookSquare.getPiece().hasMoved()) {
+            if (board.getSquare(kingRow, 5).isEmpty() && board.getSquare(kingRow, 6).isEmpty() && !isSquareAttackedBy(board.getSquare(kingRow, 5), playerColor.opposite()) && !isSquareAttackedBy(board.getSquare(kingRow, 6), playerColor.opposite())) {
                 Piece king = kingSquare.getPiece();
                 Piece rook = kingsideRookSquare.getPiece();
 
@@ -295,13 +338,8 @@ public class Game {
         }
 
         Square queensideRookSquare = board.getSquare(kingRow, 0);
-        if (queensideRookSquare.hasPiece() && queensideRookSquare.getPiece().getType() == PieceType.ROOK &&
-                !queensideRookSquare.getPiece().hasMoved()) {
-            if (board.getSquare(kingRow, 1).isEmpty() &&
-                    board.getSquare(kingRow, 2).isEmpty() &&
-                    board.getSquare(kingRow, 3).isEmpty() &&
-                    !isSquareAttackedBy(board.getSquare(kingRow, 3), playerColor.opposite()) &&
-                    !isSquareAttackedBy(board.getSquare(kingRow, 2), playerColor.opposite())) {
+        if (queensideRookSquare.hasPiece() && queensideRookSquare.getPiece().getType() == PieceType.ROOK && !queensideRookSquare.getPiece().hasMoved()) {
+            if (board.getSquare(kingRow, 1).isEmpty() && board.getSquare(kingRow, 2).isEmpty() && board.getSquare(kingRow, 3).isEmpty() && !isSquareAttackedBy(board.getSquare(kingRow, 3), playerColor.opposite()) && !isSquareAttackedBy(board.getSquare(kingRow, 2), playerColor.opposite())) {
                 Piece king = kingSquare.getPiece();
                 Piece rook = queensideRookSquare.getPiece();
 
@@ -320,10 +358,6 @@ public class Game {
     private boolean isFiftyMoveRule() {
         return halfMoveClock >= 100;
     }
-
-    // TODO: Implement Zobrist Hashing for threefold repetition
-    // private void addCurrentPositionToHistory() {}
-    // private boolean isThreefoldRepetition() {}
 
     private boolean isInsufficientMaterial() {
         List<Piece> whitePieces = new ArrayList<>();
@@ -346,7 +380,7 @@ public class Game {
                             bishopColorSquare = ((r + c) % 2 == 0) ? PieceColor.WHITE : PieceColor.BLACK;
                         } else {
                             PieceColor currentBishopColorSquare = ((r + c) % 2 == 0) ? PieceColor.WHITE : PieceColor.BLACK;
-                            if (bishopColorSquare == currentBishopColorSquare && (p.getType() == PieceType.BISHOP && countPiecesOnBoard(PieceType.BISHOP) == 2) ){
+                            if (bishopColorSquare == currentBishopColorSquare && (p.getType() == PieceType.BISHOP && countPiecesOnBoard(PieceType.BISHOP) == 2)) {
                             } else if (bishopColorSquare != currentBishopColorSquare) {
                                 bishopColorSquare = null;
                             }
@@ -361,13 +395,11 @@ public class Game {
 
         if (whitePieces.size() == 1 && blackPieces.size() == 1) return true;
 
-        if ((whitePieces.size() == 1 && blackPieces.size() == 2 && (containsPieceType(blackPieces, PieceType.KNIGHT) || containsPieceType(blackPieces, PieceType.BISHOP))) ||
-                (blackPieces.size() == 1 && whitePieces.size() == 2 && (containsPieceType(whitePieces, PieceType.KNIGHT) || containsPieceType(whitePieces, PieceType.BISHOP)))) {
+        if ((whitePieces.size() == 1 && blackPieces.size() == 2 && (containsPieceType(blackPieces, PieceType.KNIGHT) || containsPieceType(blackPieces, PieceType.BISHOP))) || (blackPieces.size() == 1 && whitePieces.size() == 2 && (containsPieceType(whitePieces, PieceType.KNIGHT) || containsPieceType(whitePieces, PieceType.BISHOP)))) {
             return true;
         }
 
-        if (whitePieces.size() == 2 && containsPieceType(whitePieces, PieceType.BISHOP) &&
-                blackPieces.size() == 2 && containsPieceType(blackPieces, PieceType.BISHOP)) {
+        if (whitePieces.size() == 2 && containsPieceType(whitePieces, PieceType.BISHOP) && blackPieces.size() == 2 && containsPieceType(blackPieces, PieceType.BISHOP)) {
 
             Square whiteBishopSquare = findPieceSquare(PieceColor.WHITE, PieceType.BISHOP);
             Square blackBishopSquare = findPieceSquare(PieceColor.BLACK, PieceType.BISHOP);
@@ -375,9 +407,7 @@ public class Game {
             if (whiteBishopSquare != null && blackBishopSquare != null) {
                 boolean whiteBishopOnWhiteSquare = (whiteBishopSquare.getRow() + whiteBishopSquare.getCol()) % 2 == 0;
                 boolean blackBishopOnWhiteSquare = (blackBishopSquare.getRow() + blackBishopSquare.getCol()) % 2 == 0;
-                if (whiteBishopOnWhiteSquare == blackBishopOnWhiteSquare) {
-                    return true;
-                }
+                return whiteBishopOnWhiteSquare == blackBishopOnWhiteSquare;
             }
         }
 
@@ -391,6 +421,10 @@ public class Game {
         }
         return false;
     }
+
+    // TODO: Implement Zobrist Hashing for threefold repetition
+    // private void addCurrentPositionToHistory() {}
+    // private boolean isThreefoldRepetition() {}
 
     private int countPieceType(List<Piece> pieces, PieceType type) {
         int count = 0;
@@ -416,13 +450,35 @@ public class Game {
     private Square findPieceSquare(PieceColor color, PieceType type) {
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {
-                Piece p = board.getPiece(r,c);
+                Piece p = board.getPiece(r, c);
                 if (p != null && p.getColor() == color && p.getType() == type) {
-                    return board.getSquare(r,c);
+                    return board.getSquare(r, c);
                 }
             }
         }
         return null;
+    }
+
+    public enum GameState {
+        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW
+    }
+
+    public static class PiecePlacement {
+        public final int row;
+        public final int col;
+        public final Piece piece;
+        public final boolean hasMoved;
+
+        public PiecePlacement(int row, int col, Piece piece) {
+            this(row, col, piece, piece != null && piece.hasMoved());
+        }
+
+        public PiecePlacement(int row, int col, Piece piece, boolean hasMoved) {
+            this.row = row;
+            this.col = col;
+            this.piece = piece;
+            this.hasMoved = hasMoved;
+        }
     }
 
     // public long getBoardHash() {}

@@ -4,8 +4,10 @@ import org.group13.chessgame.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
 import java.util.List;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class QueenTest {
     private Game game;
@@ -20,10 +22,7 @@ public class QueenTest {
     }
 
     private boolean containsMove(List<Move> moves, int startRow, int startCol, int endRow, int endCol) {
-        return moves.stream().anyMatch(m ->
-                m.getStartSquare().getRow() == startRow && m.getStartSquare().getCol() == startCol &&
-                        m.getEndSquare().getRow() == endRow && m.getEndSquare().getCol() == endCol
-        );
+        return moves.stream().anyMatch(m -> m.getStartSquare().getRow() == startRow && m.getStartSquare().getCol() == startCol && m.getEndSquare().getRow() == endRow && m.getEndSquare().getCol() == endCol);
     }
 
     @Test

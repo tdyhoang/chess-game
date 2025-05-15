@@ -45,6 +45,6 @@ public class Square {
 
     @Override
     public String toString() {
-        return (char)('a' + col) + "" + (8 - row);
+        return (char) ('a' + col) + "" + (8 - row);
     }
 }

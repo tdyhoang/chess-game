@@ -5,6 +5,7 @@ import org.group13.chessgame.model.Piece;
 import org.group13.chessgame.model.PieceColor;
 import org.group13.chessgame.model.Square;
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SquareTest {
@@ -31,7 +32,7 @@ public class SquareTest {
 
     @Test
     void testHasEnemyOrAllyPiece() {
-        Square square = new Square(0,0);
+        Square square = new Square(0, 0);
         Piece whitePawn = new Pawn(PieceColor.WHITE);
         square.setPiece(whitePawn);
 

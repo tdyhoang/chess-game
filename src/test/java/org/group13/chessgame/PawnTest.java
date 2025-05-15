@@ -5,8 +5,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+
 import java.util.List;
-import java.util.stream.Collectors;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PawnTest {
@@ -20,19 +21,11 @@ public class PawnTest {
     }
 
     private boolean containsMove(List<Move> moves, int startRow, int startCol, int endRow, int endCol) {
-        return moves.stream().anyMatch(m ->
-                m.getStartSquare().getRow() == startRow && m.getStartSquare().getCol() == startCol &&
-                        m.getEndSquare().getRow() == endRow && m.getEndSquare().getCol() == endCol &&
-                        !m.isPromotion()
-        );
+        return moves.stream().anyMatch(m -> m.getStartSquare().getRow() == startRow && m.getStartSquare().getCol() == startCol && m.getEndSquare().getRow() == endRow && m.getEndSquare().getCol() == endCol && !m.isPromotion());
     }
 
     private boolean containsPromotionMove(List<Move> moves, int startRow, int startCol, int endRow, int endCol, PieceType promotionType) {
-        return moves.stream().anyMatch(m ->
-                m.getStartSquare().getRow() == startRow && m.getStartSquare().getCol() == startCol &&
-                        m.getEndSquare().getRow() == endRow && m.getEndSquare().getCol() == endCol &&
-                        m.isPromotion() && m.getPromotionPieceType() == promotionType
-        );
+        return moves.stream().anyMatch(m -> m.getStartSquare().getRow() == startRow && m.getStartSquare().getCol() == startCol && m.getEndSquare().getRow() == endRow && m.getEndSquare().getCol() == endCol && m.isPromotion() && m.getPromotionPieceType() == promotionType);
     }
 
     @Nested
@@ -109,13 +102,13 @@ public class PawnTest {
         void cannotCaptureAlly() {
             whitePawn = new Pawn(PieceColor.WHITE);
             whitePawn.setHasMoved(true);
-            board.setPiece(3,3, whitePawn); // d5
-            board.setPiece(2,2, new Rook(PieceColor.WHITE)); // White Rook at c6
+            board.setPiece(3, 3, whitePawn); // d5
+            board.setPiece(2, 2, new Rook(PieceColor.WHITE)); // White Rook at c6
 
-            List<Move> moves = whitePawn.getPseudoLegalMoves(game, 3,3);
+            List<Move> moves = whitePawn.getPseudoLegalMoves(game, 3, 3);
             assertEquals(1, moves.stream().filter(m -> !m.isPromotion()).count());
-            assertTrue(containsMove(moves, 3,3,2,3));
-            assertFalse(containsMove(moves, 3,3,2,2));
+            assertTrue(containsMove(moves, 3, 3, 2, 3));
+            assertFalse(containsMove(moves, 3, 3, 2, 2));
         }
 
         @Test
@@ -229,13 +222,13 @@ public class PawnTest {
         void cannotCaptureAlly() {
             blackPawn = new Pawn(PieceColor.BLACK);
             blackPawn.setHasMoved(true);
-            board.setPiece(4,3, blackPawn); // d5
-            board.setPiece(5,2, new Rook(PieceColor.BLACK)); // Black Rook at c6
+            board.setPiece(4, 3, blackPawn); // d5
+            board.setPiece(5, 2, new Rook(PieceColor.BLACK)); // Black Rook at c6
 
-            List<Move> moves = blackPawn.getPseudoLegalMoves(game, 4,3);
+            List<Move> moves = blackPawn.getPseudoLegalMoves(game, 4, 3);
             assertEquals(1, moves.stream().filter(m -> !m.isPromotion()).count());
-            assertTrue(containsMove(moves, 4,3,5,3));
-            assertFalse(containsMove(moves, 4,3,5,2));
+            assertTrue(containsMove(moves, 4, 3, 5, 3));
+            assertFalse(containsMove(moves, 4, 3, 5, 2));
         }
 
         @Test
@@ -300,14 +293,9 @@ public class PawnTest {
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 3, 3);
 
-            boolean foundEnPassant = moves.stream().anyMatch(m ->
-                    m.isEnPassantMove() &&
-                            m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3 && // d5
-                            m.getEndSquare().getRow() == 2 && m.getEndSquare().getCol() == 2 &&   // c6
-                            m.getPieceCaptured() == blackPawnOriginal &&
-                            m.getEnPassantCaptureSquare() == blackPawnEndSquare &&
-                            m.getEnPassantCaptureSquare().getPiece() == blackPawnOriginal
-            );
+            boolean foundEnPassant = moves.stream().anyMatch(m -> m.isEnPassantMove() && m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3 && // d5
+                    m.getEndSquare().getRow() == 2 && m.getEndSquare().getCol() == 2 &&   // c6
+                    m.getPieceCaptured() == blackPawnOriginal && m.getEnPassantCaptureSquare() == blackPawnEndSquare && m.getEnPassantCaptureSquare().getPiece() == blackPawnOriginal);
             assertTrue(foundEnPassant, "White pawn at d5 should be able to capture en passant on c6. Moves found: " + moves);
         }
 
@@ -327,14 +315,9 @@ public class PawnTest {
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 4, 3);
 
-            boolean foundEnPassant = moves.stream().anyMatch(m ->
-                    m.isEnPassantMove() &&
-                            m.getStartSquare().getRow() == 4 && m.getStartSquare().getCol() == 3 && // d4
-                            m.getEndSquare().getRow() == 5 && m.getEndSquare().getCol() == 2 &&   // c5
-                            m.getPieceCaptured() == whitePawnOriginal &&
-                            m.getEnPassantCaptureSquare() == whitePawnEndSquare &&
-                            m.getEnPassantCaptureSquare().getPiece() == whitePawnOriginal
-            );
+            boolean foundEnPassant = moves.stream().anyMatch(m -> m.isEnPassantMove() && m.getStartSquare().getRow() == 4 && m.getStartSquare().getCol() == 3 && // d4
+                    m.getEndSquare().getRow() == 5 && m.getEndSquare().getCol() == 2 &&   // c5
+                    m.getPieceCaptured() == whitePawnOriginal && m.getEnPassantCaptureSquare() == whitePawnEndSquare && m.getEnPassantCaptureSquare().getPiece() == whitePawnOriginal);
             assertTrue(foundEnPassant, "Black pawn at d4 should be able to capture en passant on c5. Moves found: " + moves);
         }
     }

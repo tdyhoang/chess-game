@@ -14,11 +14,7 @@ public class King extends Piece {
         Board board = game.getBoard();
         Square startSquare = board.getSquare(currentRow, currentCol);
 
-        int[][] kingMoves = {
-                {-1, -1}, {-1, 0}, {-1, 1},
-                {0, -1},           {0, 1},
-                {1, -1}, {1, 0}, {1, 1}
-        };
+        int[][] kingMoves = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
 
         for (int[] moveOffset : kingMoves) {
             int nextRow = currentRow + moveOffset[0];

@@ -37,11 +37,7 @@ public class Pawn extends Piece {
         }
 
         Move lastMove = game.getLastMove();
-        if (lastMove != null &&
-                lastMove.getPieceMoved().getType() == PieceType.PAWN &&
-                Math.abs(lastMove.getStartSquare().getRow() - lastMove.getEndSquare().getRow()) == 2 &&
-                lastMove.getEndSquare().getRow() == currentRow &&
-                Math.abs(lastMove.getEndSquare().getCol() - currentCol) == 1) {
+        if (lastMove != null && lastMove.getPieceMoved().getType() == PieceType.PAWN && Math.abs(lastMove.getStartSquare().getRow() - lastMove.getEndSquare().getRow()) == 2 && lastMove.getEndSquare().getRow() == currentRow && Math.abs(lastMove.getEndSquare().getCol() - currentCol) == 1) {
 
             Square targetSquareForMove = board.getSquare(currentRow + direction, lastMove.getEndSquare().getCol());
             Square capturedPawnSquare = lastMove.getEndSquare();

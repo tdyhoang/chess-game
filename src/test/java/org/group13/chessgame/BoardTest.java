@@ -4,6 +4,7 @@ import org.group13.chessgame.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BoardTest {
@@ -49,25 +50,25 @@ public class BoardTest {
     @Test
     void testBoardCopy() {
         board.initializeBoard();
-        Piece originalPiece = board.getPiece(0,0); // Black Rook at a8
+        Piece originalPiece = board.getPiece(0, 0); // Black Rook at a8
 
         Board copiedBoard = board.copy();
 
-        assertNotNull(copiedBoard.getPiece(0,0));
-        assertEquals(originalPiece.getType(), copiedBoard.getPiece(0,0).getType());
-        assertEquals(originalPiece.getColor(), copiedBoard.getPiece(0,0).getColor());
-        assertEquals(originalPiece.hasMoved(), copiedBoard.getPiece(0,0).hasMoved());
+        assertNotNull(copiedBoard.getPiece(0, 0));
+        assertEquals(originalPiece.getType(), copiedBoard.getPiece(0, 0).getType());
+        assertEquals(originalPiece.getColor(), copiedBoard.getPiece(0, 0).getColor());
+        assertEquals(originalPiece.hasMoved(), copiedBoard.getPiece(0, 0).hasMoved());
 
 
-        assertNotSame(originalPiece, copiedBoard.getPiece(0,0), "Pieces on copied board should be new instances");
+        assertNotSame(originalPiece, copiedBoard.getPiece(0, 0), "Pieces on copied board should be new instances");
 
-        board.setPiece(0,0, null); // Remove rook from original board
-        assertNull(board.getPiece(0,0));
-        assertNotNull(copiedBoard.getPiece(0,0), "Copied board should remain unchanged after original board is modified");
+        board.setPiece(0, 0, null); // Remove rook from original board
+        assertNull(board.getPiece(0, 0));
+        assertNotNull(copiedBoard.getPiece(0, 0), "Copied board should remain unchanged after original board is modified");
 
-        copiedBoard.setPiece(1,0, null); // Remove black pawn from copied board
-        assertNull(copiedBoard.getPiece(1,0));
-        assertNotNull(board.getPiece(1,0), "Original board should remain unchanged after copied board is modified");
+        copiedBoard.setPiece(1, 0, null); // Remove black pawn from copied board
+        assertNull(copiedBoard.getPiece(1, 0));
+        assertNotNull(board.getPiece(1, 0), "Original board should remain unchanged after copied board is modified");
     }
 
     @Test

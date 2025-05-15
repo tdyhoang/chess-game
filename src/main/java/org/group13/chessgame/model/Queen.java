@@ -14,10 +14,7 @@ public class Queen extends Piece {
         Board board = game.getBoard();
         Square startSquare = board.getSquare(currentRow, currentCol);
 
-        int[][] directions = {
-                {0, 1}, {0, -1}, {1, 0}, {-1, 0},       // Rook moves
-                {-1, -1}, {-1, 1}, {1, -1}, {1, 1}        // Bishop moves
-        };
+        int[][] directions = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
 
         for (int[] dir : directions) {
             for (int i = 1; i < Board.SIZE; i++) {

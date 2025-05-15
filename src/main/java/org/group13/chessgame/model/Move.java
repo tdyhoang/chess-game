@@ -4,8 +4,8 @@ public class Move {
     private final Square startSquare;
     private final Square endSquare;
     private final Piece pieceMoved;
-    private Piece pieceCaptured;
     private final boolean pieceMovedOriginalHasMoved;
+    private Piece pieceCaptured;
     private Piece pieceOnRookStartForCastling;
     private boolean rookOriginalHasMoved;
 
@@ -61,8 +61,14 @@ public class Move {
         this.pieceOnRookStartForCastling = rook;
         this.rookOriginalHasMoved = rookOriginalHasMoved;
     }
-    public Piece getPieceOnRookStartForCastling() { return pieceOnRookStartForCastling; }
-    public boolean getRookOriginalHasMoved() { return rookOriginalHasMoved; }
+
+    public Piece getPieceOnRookStartForCastling() {
+        return pieceOnRookStartForCastling;
+    }
+
+    public boolean getRookOriginalHasMoved() {
+        return rookOriginalHasMoved;
+    }
 
     public boolean isPromotion() {
         return promotionPieceType != null;
@@ -72,23 +78,49 @@ public class Move {
         return promotionPieceType;
     }
 
-    public boolean isCastlingMove() { return isCastlingMove; }
-    public void setCastlingMove(boolean castlingMove) { isCastlingMove = castlingMove; }
-    public Square getRookStartSquareForCastling() { return rookStartSquareForCastling; }
-    public void setRookStartSquareForCastling(Square rookStartSquare) { this.rookStartSquareForCastling = rookStartSquare; }
-    public Square getRookEndSquareForCastling() { return rookEndSquareForCastling; }
-    public void setRookEndSquareForCastling(Square rookEndSquare) { this.rookEndSquareForCastling = rookEndSquare; }
+    public boolean isCastlingMove() {
+        return isCastlingMove;
+    }
 
-    public boolean isEnPassantMove() { return isEnPassantMove; }
-    public void setEnPassantMove(boolean enPassantMove) { isEnPassantMove = enPassantMove; }
-    public Square getEnPassantCaptureSquare() { return enPassantCaptureSquare; }
-    public void setEnPassantCaptureSquare(Square enPassantCaptureSquare) { this.enPassantCaptureSquare = enPassantCaptureSquare; }
+    public void setCastlingMove(boolean castlingMove) {
+        isCastlingMove = castlingMove;
+    }
+
+    public Square getRookStartSquareForCastling() {
+        return rookStartSquareForCastling;
+    }
+
+    public void setRookStartSquareForCastling(Square rookStartSquare) {
+        this.rookStartSquareForCastling = rookStartSquare;
+    }
+
+    public Square getRookEndSquareForCastling() {
+        return rookEndSquareForCastling;
+    }
+
+    public void setRookEndSquareForCastling(Square rookEndSquare) {
+        this.rookEndSquareForCastling = rookEndSquare;
+    }
+
+    public boolean isEnPassantMove() {
+        return isEnPassantMove;
+    }
+
+    public void setEnPassantMove(boolean enPassantMove) {
+        isEnPassantMove = enPassantMove;
+    }
+
+    public Square getEnPassantCaptureSquare() {
+        return enPassantCaptureSquare;
+    }
+
+    public void setEnPassantCaptureSquare(Square enPassantCaptureSquare) {
+        this.enPassantCaptureSquare = enPassantCaptureSquare;
+    }
 
     @Override
     public String toString() { // VD: "e2-e4"
-        return pieceMoved.toString() + "@" + startSquare.toString() + " -> " + endSquare.toString()
-                + (pieceCaptured != null ? "x" + pieceCaptured.toString() : "")
-                + (isPromotion() ? "=" + promotionPieceType.toString().charAt(0) : "");
+        return pieceMoved.toString() + "@" + startSquare.toString() + " -> " + endSquare.toString() + (pieceCaptured != null ? "x" + pieceCaptured : "") + (isPromotion() ? "=" + promotionPieceType.toString().charAt(0) : "");
     }
 
     @Override
@@ -96,13 +128,7 @@ public class Move {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Move move = (Move) o;
-        return startSquare.getRow() == move.startSquare.getRow() &&
-                startSquare.getCol() == move.startSquare.getCol() &&
-                endSquare.getRow() == move.endSquare.getRow() &&
-                endSquare.getCol() == move.endSquare.getCol() &&
-                promotionPieceType == move.promotionPieceType &&
-                isCastlingMove == move.isCastlingMove &&
-                isEnPassantMove == move.isEnPassantMove;
+        return startSquare.getRow() == move.startSquare.getRow() && startSquare.getCol() == move.startSquare.getCol() && endSquare.getRow() == move.endSquare.getRow() && endSquare.getCol() == move.endSquare.getCol() && promotionPieceType == move.promotionPieceType && isCastlingMove == move.isCastlingMove && isEnPassantMove == move.isEnPassantMove;
     }
 
     @Override

@@ -2,7 +2,8 @@ package org.group13.chessgame;
 
 import org.group13.chessgame.model.PieceColor;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class PieceColorTest {
     @Test
