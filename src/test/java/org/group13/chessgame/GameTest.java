@@ -284,9 +284,6 @@ public class GameTest {
         }
     }
 
-    // src/test/java/your/package/name/GameTest.java
-// ... (imports và các phần đã có)
-
     @Nested
     @DisplayName("Castling Tests")
     class CastlingTests {
@@ -309,24 +306,22 @@ public class GameTest {
             setupInitialKingsAndRooks();
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
-            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove)
-                    .filter(m -> m.getEndSquare().getCol() == 6)
-                    .findFirst();
+            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 6).findFirst();
             assertTrue(ooMove.isPresent(), "White Kingside Castling (O-O) should be a legal move.");
 
             Move castling = ooMove.get();
-            assertEquals(board.getSquare(7,4), castling.getStartSquare(), "King should start at e1");
-            assertEquals(board.getSquare(7,6), castling.getEndSquare(), "King should end at g1");
-            assertEquals(board.getSquare(7,7), castling.getRookStartSquareForCastling(), "Rook should start at h1");
-            assertEquals(board.getSquare(7,5), castling.getRookEndSquareForCastling(), "Rook should end at f1");
+            assertEquals(board.getSquare(7, 4), castling.getStartSquare(), "King should start at e1");
+            assertEquals(board.getSquare(7, 6), castling.getEndSquare(), "King should end at g1");
+            assertEquals(board.getSquare(7, 7), castling.getRookStartSquareForCastling(), "Rook should start at h1");
+            assertEquals(board.getSquare(7, 5), castling.getRookEndSquareForCastling(), "Rook should end at f1");
 
             assertTrue(game.makeMove(castling));
-            assertSame(board.getPiece(7,6).getType(), PieceType.KING, "King should be on g1 after O-O.");
-            assertSame(board.getPiece(7,5).getType(), PieceType.ROOK, "Rook should be on f1 after O-O.");
-            assertTrue(board.getPiece(7,6).hasMoved(), "King should be marked as moved after O-O.");
-            assertTrue(board.getPiece(7,5).hasMoved(), "Rook should be marked as moved after O-O.");
-            assertNull(board.getPiece(7,4), "e1 should be empty.");
-            assertNull(board.getPiece(7,7), "h1 should be empty.");
+            assertSame(board.getPiece(7, 6).getType(), PieceType.KING, "King should be on g1 after O-O.");
+            assertSame(board.getPiece(7, 5).getType(), PieceType.ROOK, "Rook should be on f1 after O-O.");
+            assertTrue(board.getPiece(7, 6).hasMoved(), "King should be marked as moved after O-O.");
+            assertTrue(board.getPiece(7, 5).hasMoved(), "Rook should be marked as moved after O-O.");
+            assertNull(board.getPiece(7, 4), "e1 should be empty.");
+            assertNull(board.getPiece(7, 7), "h1 should be empty.");
         }
 
         @Test
@@ -335,21 +330,19 @@ public class GameTest {
             setupInitialKingsAndRooks();
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
-            Optional<Move> oooMove = whiteMoves.stream().filter(Move::isCastlingMove)
-                    .filter(m -> m.getEndSquare().getCol() == 2)
-                    .findFirst();
+            Optional<Move> oooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 2).findFirst();
             assertTrue(oooMove.isPresent(), "White Queenside Castling (O-O-O) should be a legal move.");
 
             Move castling = oooMove.get();
-            assertEquals(board.getSquare(7,0), castling.getRookStartSquareForCastling(), "Rook should start at a1");
-            assertEquals(board.getSquare(7,3), castling.getRookEndSquareForCastling(), "Rook should end at d1");
+            assertEquals(board.getSquare(7, 0), castling.getRookStartSquareForCastling(), "Rook should start at a1");
+            assertEquals(board.getSquare(7, 3), castling.getRookEndSquareForCastling(), "Rook should end at d1");
 
 
             assertTrue(game.makeMove(castling));
-            assertSame(board.getPiece(7,2).getType(), PieceType.KING, "King should be on c1 after O-O-O.");
-            assertSame(board.getPiece(7,3).getType(), PieceType.ROOK, "Rook should be on d1 after O-O-O.");
-            assertTrue(board.getPiece(7,2).hasMoved());
-            assertTrue(board.getPiece(7,3).hasMoved());
+            assertSame(board.getPiece(7, 2).getType(), PieceType.KING, "King should be on c1 after O-O-O.");
+            assertSame(board.getPiece(7, 3).getType(), PieceType.ROOK, "Rook should be on d1 after O-O-O.");
+            assertTrue(board.getPiece(7, 2).hasMoved());
+            assertTrue(board.getPiece(7, 3).hasMoved());
         }
 
 
@@ -357,7 +350,7 @@ public class GameTest {
         @DisplayName("Cannot castle if King has moved")
         void cannotCastleIfKingMoved() {
             setupInitialKingsAndRooks();
-            King whiteKing = (King) board.getPiece(7,4);
+            King whiteKing = (King) board.getPiece(7, 4);
             whiteKing.setHasMoved(true);
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
@@ -368,13 +361,11 @@ public class GameTest {
         @DisplayName("Cannot castle if Rook has moved")
         void cannotCastleIfRookMoved() {
             setupInitialKingsAndRooks();
-            Rook kingsideRook = (Rook) board.getPiece(7,7);
+            Rook kingsideRook = (Rook) board.getPiece(7, 7);
             kingsideRook.setHasMoved(true);
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
-            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove)
-                    .filter(m -> m.getEndSquare().getCol() == 6)
-                    .findFirst();
+            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 6).findFirst();
             assertFalse(ooMove.isPresent(), "Should not be able to kingside castle if h1-Rook has moved.");
             assertTrue(whiteMoves.stream().filter(Move::isCastlingMove).anyMatch(m -> m.getEndSquare().getCol() == 2), "Queenside castling should still be possible.");
         }
@@ -383,12 +374,10 @@ public class GameTest {
         @DisplayName("Cannot castle if path is blocked (Kingside)")
         void cannotCastleIfPathBlockedKingside() {
             setupInitialKingsAndRooks();
-            board.setPiece(7,5, new Knight(PieceColor.WHITE));
+            board.setPiece(7, 5, new Knight(PieceColor.WHITE));
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
-            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove)
-                    .filter(m -> m.getEndSquare().getCol() == 6)
-                    .findFirst();
+            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 6).findFirst();
             assertFalse(ooMove.isPresent(), "Should not kingside castle if f1 is blocked.");
         }
 
@@ -396,7 +385,7 @@ public class GameTest {
         @DisplayName("Cannot castle if King is in check")
         void cannotCastleIfKingInCheck() {
             setupInitialKingsAndRooks();
-            board.setPiece(6,4, new Rook(PieceColor.BLACK));
+            board.setPiece(6, 4, new Rook(PieceColor.BLACK));
 
             assertTrue(game.isKingInCheck(PieceColor.WHITE), "White King should be in check.");
 
@@ -408,14 +397,12 @@ public class GameTest {
         @DisplayName("Cannot castle through an attacked square (Kingside f1)")
         void cannotCastleThroughAttackedSquareKingside() {
             setupInitialKingsAndRooks();
-            board.setPiece(0,5, new Rook(PieceColor.BLACK));
+            board.setPiece(0, 5, new Rook(PieceColor.BLACK));
 
-            assertTrue(game.isSquareAttackedBy(board.getSquare(7,5), PieceColor.BLACK), "f1 should be attacked by Black Rook at f8.");
+            assertTrue(game.isSquareAttackedBy(board.getSquare(7, 5), PieceColor.BLACK), "f1 should be attacked by Black Rook at f8.");
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
-            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove)
-                    .filter(m -> m.getEndSquare().getCol() == 6)
-                    .findFirst();
+            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 6).findFirst();
             assertFalse(ooMove.isPresent(), "Should not kingside castle if f1 (square King passes through) is attacked.");
         }
 
@@ -423,14 +410,12 @@ public class GameTest {
         @DisplayName("Cannot castle into an attacked square (Kingside g1)")
         void cannotCastleIntoAttackedSquareKingside() {
             setupInitialKingsAndRooks();
-            board.setPiece(0,6, new Rook(PieceColor.BLACK));
+            board.setPiece(0, 6, new Rook(PieceColor.BLACK));
 
-            assertTrue(game.isSquareAttackedBy(board.getSquare(7,6), PieceColor.BLACK), "g1 should be attacked by Black Rook at g8.");
+            assertTrue(game.isSquareAttackedBy(board.getSquare(7, 6), PieceColor.BLACK), "g1 should be attacked by Black Rook at g8.");
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
-            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove)
-                    .filter(m -> m.getEndSquare().getCol() == 6)
-                    .findFirst();
+            Optional<Move> ooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 6).findFirst();
             assertFalse(ooMove.isPresent(), "Should not kingside castle if g1 (square King lands on) is attacked.");
         }
 
@@ -439,13 +424,10 @@ public class GameTest {
         void undoCastlingKingside() {
             setupInitialKingsAndRooks();
 
-            Move ooMove = game.getAllLegalMovesForPlayer(PieceColor.WHITE).stream()
-                    .filter(Move::isCastlingMove)
-                    .filter(m -> m.getEndSquare().getCol() == 6)
-                    .findFirst().orElseThrow(() -> new AssertionError("Kingside castling move not found"));
+            Move ooMove = game.getAllLegalMovesForPlayer(PieceColor.WHITE).stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 6).findFirst().orElseThrow(() -> new AssertionError("Kingside castling move not found"));
 
-            Piece originalKing = board.getPiece(7,4);
-            Piece originalRook = board.getPiece(7,7);
+            Piece originalKing = board.getPiece(7, 4);
+            Piece originalRook = board.getPiece(7, 7);
             assertFalse(originalKing.hasMoved());
             assertFalse(originalRook.hasMoved());
 
@@ -453,14 +435,212 @@ public class GameTest {
 
             game.undoLastMove();
 
-            assertSame(originalKing, board.getPiece(7,4), "King should be back on e1.");
-            assertSame(originalRook, board.getPiece(7,7), "Rook should be back on h1.");
-            assertNull(board.getPiece(7,6), "g1 should be empty.");
-            assertNull(board.getPiece(7,5), "f1 should be empty.");
-            assertFalse(board.getPiece(7,4).hasMoved(), "King's hasMoved should be false after undo.");
-            assertFalse(board.getPiece(7,7).hasMoved(), "Rook's hasMoved should be false after undo.");
+            assertSame(originalKing, board.getPiece(7, 4), "King should be back on e1.");
+            assertSame(originalRook, board.getPiece(7, 7), "Rook should be back on h1.");
+            assertNull(board.getPiece(7, 6), "g1 should be empty.");
+            assertNull(board.getPiece(7, 5), "f1 should be empty.");
+            assertFalse(board.getPiece(7, 4).hasMoved(), "King's hasMoved should be false after undo.");
+            assertFalse(board.getPiece(7, 7).hasMoved(), "Rook's hasMoved should be false after undo.");
             assertEquals(PieceColor.WHITE, game.getCurrentPlayer().getColor(), "Should be White's turn again after undoing White's move.");
         }
 
+        @Test
+        @DisplayName("Cannot castle Queenside if path (b1,c1,d1) is blocked")
+        void cannotCastleIfPathBlockedQueenside() {
+            setupInitialKingsAndRooks();
+            board.setPiece(7, 2, new Knight(PieceColor.WHITE));
+
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+            Optional<Move> oooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 2).findFirst();
+            assertFalse(oooMove.isPresent(), "Should not queenside castle if c1 is blocked.");
+        }
+
+        @Test
+        @DisplayName("Cannot castle Queenside through an attacked square (d1)")
+        void cannotCastleThroughAttackedSquareQueensideD1() {
+            setupInitialKingsAndRooks();
+            board.setPiece(0, 3, new Rook(PieceColor.BLACK));
+
+            assertTrue(game.isSquareAttackedBy(board.getSquare(7, 3), PieceColor.BLACK), "d1 should be attacked by Black Rook at d8.");
+
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+            Optional<Move> oooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 2).findFirst();
+            assertFalse(oooMove.isPresent(), "Should not queenside castle if d1 (square King passes through) is attacked.");
+        }
+
+        @Test
+        @DisplayName("Cannot castle Queenside through an attacked square (c1 - landing)")
+        void cannotCastleIntoAttackedSquareQueensideC1() {
+            setupInitialKingsAndRooks();
+            board.setPiece(0, 2, new Rook(PieceColor.BLACK));
+
+            assertTrue(game.isSquareAttackedBy(board.getSquare(7, 2), PieceColor.BLACK), "c1 should be attacked by Black Rook at c8.");
+
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+            Optional<Move> oooMove = whiteMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 2).findFirst();
+            assertFalse(oooMove.isPresent(), "Should not queenside castle if c1 (square King lands on) is attacked.");
+        }
+
+        @Test
+        @DisplayName("Undo Castling (Queenside)")
+        void undoCastlingQueenside() {
+            setupInitialKingsAndRooks();
+
+            Move oooMove = game.getAllLegalMovesForPlayer(PieceColor.WHITE).stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 2).findFirst().orElseThrow(() -> new AssertionError("Queenside castling move not found"));
+
+            Piece originalKing = board.getPiece(7, 4);
+            Piece originalRook = board.getPiece(7, 0);
+            assertFalse(originalKing.hasMoved());
+            assertFalse(originalRook.hasMoved());
+
+            assertTrue(game.makeMove(oooMove));
+
+            assertTrue(game.undoLastMove(), "Undo last move should be successful.");
+
+            assertSame(originalKing, board.getPiece(7, 4), "King should be back on e1.");
+            assertSame(originalRook, board.getPiece(7, 0), "Rook should be back on a1.");
+            assertNull(board.getPiece(7, 2), "c1 should be empty.");
+            assertNull(board.getPiece(7, 3), "d1 should be empty.");
+            assertFalse(board.getPiece(7, 4).hasMoved(), "King's hasMoved should be false after undo.");
+            assertFalse(board.getPiece(7, 0).hasMoved(), "Rook's hasMoved should be false after undo.");
+            assertEquals(PieceColor.WHITE, game.getCurrentPlayer().getColor(), "Should be White's turn again.");
+            assertEquals(Game.GameState.ACTIVE, game.getGameState());
+        }
+
+        @Test
+        @DisplayName("Black Kingside Castling (O-O) is legal")
+        void blackKingsideCastlingLegal() {
+            setupInitialKingsAndRooks();
+            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
+
+            List<Move> blackMoves = game.getAllLegalMovesForPlayer(PieceColor.BLACK);
+            Optional<Move> ooMove = blackMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 6).findFirst();
+            assertTrue(ooMove.isPresent(), "Black Kingside Castling (O-O) should be a legal move.");
+
+            assertTrue(game.makeMove(ooMove.get()));
+            assertSame(board.getPiece(0, 6).getType(), PieceType.KING);
+            assertSame(board.getPiece(0, 5).getType(), PieceType.ROOK);
+        }
+
+        @Test
+        @DisplayName("Black Queenside Castling (O-O-O) is legal")
+        void blackQueensideCastlingLegal() {
+            setupInitialKingsAndRooks();
+            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
+
+            List<Move> blackMoves = game.getAllLegalMovesForPlayer(PieceColor.BLACK);
+            Optional<Move> oooMove = blackMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 2).findFirst();
+            assertTrue(oooMove.isPresent(), "Black Queenside Castling (O-O-O) should be a legal move.");
+
+            assertTrue(game.makeMove(oooMove.get()));
+            assertSame(board.getPiece(0, 2).getType(), PieceType.KING);
+            assertSame(board.getPiece(0, 3).getType(), PieceType.ROOK);
+        }
+    }
+
+    @Nested
+    @DisplayName("En Passant Tests")
+    class EnPassantTests {
+
+        @Test
+        @DisplayName("White Pawn can perform en passant capture")
+        void whitePawnEnPassantLegal() {
+            Pawn whitePawnD5 = new Pawn(PieceColor.WHITE);
+            Pawn blackPawnC7 = new Pawn(PieceColor.BLACK);
+
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7)), PieceColor.WHITE);
+
+            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
+            Move blackPawnMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).orElseThrow(() -> new AssertionError("Black pawn c7-c5 move not found"));
+            assertTrue(game.makeMove(blackPawnMove));
+
+            assertSame(game.getCurrentPlayer().getColor(), PieceColor.WHITE);
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+
+            Optional<Move> enPassantMove = whiteMoves.stream().filter(Move::isEnPassantMove).filter(m -> m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3).filter(m -> m.getEndSquare().getRow() == 2 && m.getEndSquare().getCol() == 2).findFirst();
+
+            assertTrue(enPassantMove.isPresent(), "White pawn d5 should have en passant capture to c6.");
+
+            Move epMove = enPassantMove.get();
+            assertNotNull(epMove.getPieceCaptured(), "En passant move should have a captured piece.");
+            assertSame(blackPawnC7, epMove.getPieceCaptured(), "Captured piece should be the black pawn from c5.");
+            assertNotNull(epMove.getEnPassantCaptureSquare(), "En passant move should specify the capture square.");
+            assertEquals(board.getSquare(3, 2), epMove.getEnPassantCaptureSquare(), "En passant capture square should be c5.");
+
+
+            assertTrue(game.makeMove(epMove));
+            assertSame(whitePawnD5, board.getPiece(2, 2), "White pawn should be at c6 after e.p.");
+            assertNull(board.getPiece(3, 3), "d5 should be empty.");
+            assertNull(board.getPiece(3, 2), "c5 (black pawn's original square after 2-step) should be empty after e.p. capture.");
+        }
+
+        @Test
+        @DisplayName("En passant is not legal if not immediately after opponent's two-square pawn move")
+        void enPassantNotLegalIfNotImmediate() {
+            Pawn whitePawnD5 = new Pawn(PieceColor.WHITE);
+            Pawn blackPawnC7 = new Pawn(PieceColor.BLACK);
+            Pawn whitePawnH2 = new Pawn(PieceColor.WHITE);
+            Pawn blackPawnA7 = new Pawn(PieceColor.BLACK);
+
+
+            List<Game.PiecePlacement> placements = List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7), new Game.PiecePlacement(6, 7, whitePawnH2), new Game.PiecePlacement(1, 0, blackPawnA7));
+            game.setupBoardForTest(placements, PieceColor.WHITE);
+
+            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
+            Move blackPawnMove1 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).get(); // c5
+            assertTrue(game.makeMove(blackPawnMove1));
+
+            Move whiteIntermediateMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 7, 5, 7).get(); // h3
+            assertTrue(game.makeMove(whiteIntermediateMove));
+
+            Move blackIntermediateMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 0, 2, 0).get(); // a6
+            assertTrue(game.makeMove(blackIntermediateMove));
+
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+            Optional<Move> enPassantMove = whiteMoves.stream().filter(Move::isEnPassantMove).filter(m -> m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3).findFirst();
+
+            assertFalse(enPassantMove.isPresent(), "En passant should not be legal after intermediate moves.");
+        }
+
+        @Test
+        @DisplayName("En passant not legal if opponent pawn moved one square")
+        void enPassantNotLegalIfOpponentOneSquareMove() {
+            Pawn whitePawnD5 = new Pawn(PieceColor.WHITE);
+            Pawn blackPawnC6 = new Pawn(PieceColor.BLACK);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(2, 2, blackPawnC6)), PieceColor.WHITE);
+
+            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
+            Move blackPawnMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 2, 2, 3, 2).get(); // c5
+            assertTrue(game.makeMove(blackPawnMove));
+
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+            Optional<Move> enPassantMove = whiteMoves.stream().filter(Move::isEnPassantMove).filter(m -> m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3).findFirst();
+            assertFalse(enPassantMove.isPresent(), "En passant not legal if opponent pawn moved one square.");
+        }
+
+        @Test
+        @DisplayName("Undo En Passant capture")
+        void undoEnPassantCapture() {
+            Pawn whitePawnD5 = new Pawn(PieceColor.WHITE);
+            Pawn blackPawnC7 = new Pawn(PieceColor.BLACK);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7)), PieceColor.WHITE);
+
+            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
+            Move blackPawnMoveToC5 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).get();
+            assertTrue(game.makeMove(blackPawnMoveToC5));
+
+            Move enPassantCapture = game.getAllLegalMovesForPlayer(PieceColor.WHITE).stream().filter(Move::isEnPassantMove).filter(m -> m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3).findFirst().orElseThrow(() -> new AssertionError("En passant move not found for White."));
+
+            assertTrue(game.makeMove(enPassantCapture));
+
+            assertTrue(game.undoLastMove(), "Undo en passant capture should be successful.");
+
+            assertSame(whitePawnD5, board.getPiece(3, 3), "White pawn should be back on d5.");
+            assertSame(blackPawnC7, board.getPiece(3, 2), "Captured Black pawn should be back on c5.");
+            assertNull(board.getPiece(2, 2), "c6 (en passant target square) should be empty.");
+
+            assertEquals(PieceColor.WHITE, game.getCurrentPlayer().getColor(), "Should be White's turn again (before the e.p. move).");
+            assertEquals(blackPawnMoveToC5, game.getLastMove(), "Last move in history should be Black's c7-c5.");
+        }
     }
 }

@@ -8,9 +8,9 @@ public class Game {
     private final Player whitePlayer;
     private final Player blackPlayer;
     private final List<Move> moveHistory;
-    private GameState previousGameState;
     // threefold repetition
     private final List<Long> positionHistoryHash;
+    private GameState previousGameState;
     private Player currentPlayer;
     private GameState gameState;
     private Square whiteKingSquare;
@@ -460,30 +460,6 @@ public class Game {
         return null;
     }
 
-    public enum GameState {
-        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW
-    }
-
-    public static class PiecePlacement {
-        public final int row;
-        public final int col;
-        public final Piece piece;
-        public final boolean hasMoved;
-
-        public PiecePlacement(int row, int col, Piece piece) {
-            this(row, col, piece, piece != null && piece.hasMoved());
-        }
-
-        public PiecePlacement(int row, int col, Piece piece, boolean hasMoved) {
-            this.row = row;
-            this.col = col;
-            this.piece = piece;
-            this.hasMoved = hasMoved;
-        }
-    }
-
-    // public long getBoardHash() {}
-
     public boolean undoLastMove() {
         if (moveHistory.isEmpty()) {
             return false;
@@ -508,5 +484,29 @@ public class Game {
         updateGameState();
 
         return true;
+    }
+
+    public enum GameState {
+        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW
+    }
+
+    // public long getBoardHash() {}
+
+    public static class PiecePlacement {
+        public final int row;
+        public final int col;
+        public final Piece piece;
+        public final boolean hasMoved;
+
+        public PiecePlacement(int row, int col, Piece piece) {
+            this(row, col, piece, piece != null && piece.hasMoved());
+        }
+
+        public PiecePlacement(int row, int col, Piece piece, boolean hasMoved) {
+            this.row = row;
+            this.col = col;
+            this.piece = piece;
+            this.hasMoved = hasMoved;
+        }
     }
 }
