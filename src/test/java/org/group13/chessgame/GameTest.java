@@ -784,4 +784,131 @@ public class GameTest {
             assertEquals(PieceColor.BLACK, pieceAtH1.getColor());
         }
     }
+
+    @Nested
+    @DisplayName("Fifty-Move Rule Tests")
+    class FiftyMoveRuleTests {
+
+        @Test
+        @DisplayName("Game is drawn after 50 moves (100 plies) without pawn move or capture")
+        void testFiftyMoveDraw() {
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(7, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(6, 1, new Queen(PieceColor.WHITE)), new Game.PiecePlacement(0, 2, new King(PieceColor.BLACK))), PieceColor.WHITE);
+            assertEquals(0, game.getHalfMoveClock());
+
+            for (int i = 0; i < 99; i++) {
+                if (i % 2 == 0) {
+                    game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 1, 6, 2).orElseGet(() -> findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 2, 6, 1).get())); // Qc2 or Qb2
+                } else {
+                    game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 0, 2, 0, 3).orElseGet(() -> findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 0, 3, 0, 2).get())); // Kd8 or Kc8
+                }
+                if (game.getGameState() != Game.GameState.ACTIVE && game.getGameState() != Game.GameState.CHECK) break;
+            }
+            if (game.getHalfMoveClock() == 99) {
+                assertTrue(game.getGameState() == Game.GameState.ACTIVE || game.getGameState() == Game.GameState.CHECK);
+                if (game.getCurrentPlayer().getColor() == PieceColor.WHITE) {
+                    game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 1, 6, 2).orElseGet(() -> findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 2, 6, 1).get())); // Qc2 or Qb2
+                } else {
+                    game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 0, 2, 0, 3).orElseGet(() -> findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 0, 3, 0, 2).get())); // Kd8 or Kc8
+                }
+                assertEquals(100, game.getHalfMoveClock());
+                assertEquals(Game.GameState.FIFTY_MOVE_DRAW, game.getGameState());
+            } else {
+                System.out.println("FiftyMoveRuleTest: Game ended before 99 half-moves. Current clock: " + game.getHalfMoveClock() + ", State: " + game.getGameState());
+            }
+        }
+
+        @Test
+        @DisplayName("Half-move clock resets after a pawn move")
+        void testHalfMoveClockResetsOnPawnMove() {
+            game.initializeGame();
+
+            game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 7, 6, 5, 5).get()); // Nf3
+            assertEquals(1, game.getHalfMoveClock());
+            game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 0, 1, 2, 2).get()); // Nc6
+            assertEquals(2, game.getHalfMoveClock());
+
+            game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 4, 4, 4).get()); // e4
+            assertEquals(0, game.getHalfMoveClock(), "Half-move clock should reset to 0 after a pawn move.");
+        }
+
+        @Test
+        @DisplayName("Half-move clock resets after a capture")
+        void testHalfMoveClockResetsOnCapture() {
+            game.initializeGame();
+            game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 3, 4, 3).get()); // d4
+            assertEquals(0, game.getHalfMoveClock());
+            game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 3, 3, 3).get()); // d5
+            assertEquals(0, game.getHalfMoveClock());
+            game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 7, 1, 5, 2).get()); // Nc3
+            assertEquals(1, game.getHalfMoveClock());
+            game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 0, 6, 2, 5).get()); // Nf6
+            assertEquals(2, game.getHalfMoveClock());
+
+            Move captureMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 5, 2, 3, 3).orElseThrow(() -> new AssertionError("Capture move Nxd5 not found"));
+            assertNotNull(captureMove.getPieceCaptured());
+            assertTrue(game.makeMove(captureMove));
+            assertEquals(0, game.getHalfMoveClock(), "Half-move clock should reset to 0 after a capture.");
+        }
+    }
+
+    @Nested
+    @DisplayName("Insufficient Material Tests")
+    class InsufficientMaterialTests {
+        @Test
+        @DisplayName("King vs King is a draw")
+        void kingVsKing() {
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(0, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(7, 7, new King(PieceColor.BLACK))), PieceColor.WHITE);
+            game._test_triggerUpdateGameState();
+            assertEquals(Game.GameState.INSUFFICIENT_MATERIAL_DRAW, game.getGameState());
+        }
+
+        @Test
+        @DisplayName("King vs King and Knight is a draw")
+        void kingVsKingAndKnight() {
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(0, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(7, 7, new King(PieceColor.BLACK)), new Game.PiecePlacement(7, 6, new Knight(PieceColor.BLACK))), PieceColor.WHITE);
+            game._test_triggerUpdateGameState();
+            assertEquals(Game.GameState.INSUFFICIENT_MATERIAL_DRAW, game.getGameState());
+        }
+
+        @Test
+        @DisplayName("King vs King and Bishop is a draw")
+        void kingVsKingAndBishop() {
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(0, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(7, 7, new King(PieceColor.BLACK)), new Game.PiecePlacement(7, 5, new Bishop(PieceColor.BLACK))), PieceColor.WHITE);
+            game._test_triggerUpdateGameState();
+            assertEquals(Game.GameState.INSUFFICIENT_MATERIAL_DRAW, game.getGameState());
+        }
+
+        @Test
+        @DisplayName("King and Bishop vs King and Bishop (same color squares) is a draw")
+        void kingAndBishopVsKingAndBishopSameColor() {
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(0, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(0, 1, new Bishop(PieceColor.WHITE)), new Game.PiecePlacement(7, 7, new King(PieceColor.BLACK)), new Game.PiecePlacement(7, 6, new Bishop(PieceColor.BLACK))), PieceColor.WHITE);
+            game._test_triggerUpdateGameState();
+            assertEquals(Game.GameState.INSUFFICIENT_MATERIAL_DRAW, game.getGameState());
+        }
+
+        @Test
+        @DisplayName("King and Bishop vs King and Bishop (different color squares) is NOT necessarily a draw by this rule")
+        void kingAndBishopVsKingAndBishopDifferentColor() {
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(0, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(0, 1, new Bishop(PieceColor.WHITE)), new Game.PiecePlacement(7, 7, new King(PieceColor.BLACK)), new Game.PiecePlacement(7, 5, new Bishop(PieceColor.BLACK))), PieceColor.WHITE);
+            game._test_triggerUpdateGameState();
+            assertNotEquals(Game.GameState.INSUFFICIENT_MATERIAL_DRAW, game.getGameState(), "Game should not be a draw by insufficient material.");
+        }
+
+
+        @Test
+        @DisplayName("King and Pawn vs King is NOT a draw by insufficient material")
+        void kingAndPawnVsKing() {
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(0, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(1, 0, new Pawn(PieceColor.WHITE)), new Game.PiecePlacement(7, 7, new King(PieceColor.BLACK))), PieceColor.WHITE);
+            game._test_triggerUpdateGameState();
+            assertNotEquals(Game.GameState.INSUFFICIENT_MATERIAL_DRAW, game.getGameState(), "Game should not be a draw by insufficient material.");
+        }
+
+        @Test
+        @DisplayName("King and Rook vs King is NOT a draw by insufficient material")
+        void kingAndRookVsKing() {
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(0, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(1, 0, new Rook(PieceColor.WHITE)), new Game.PiecePlacement(7, 7, new King(PieceColor.BLACK))), PieceColor.WHITE);
+            game._test_triggerUpdateGameState();
+            assertNotEquals(Game.GameState.INSUFFICIENT_MATERIAL_DRAW, game.getGameState(), "Game should not be a draw by insufficient material.");
+        }
+    }
 }

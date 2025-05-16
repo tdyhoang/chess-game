@@ -486,11 +486,27 @@ public class Game {
         return true;
     }
 
-    public enum GameState {
-        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW
+    public void resetHalfMoveClock() {
+        this.halfMoveClock = 0;
     }
 
     // public long getBoardHash() {}
+
+    public void incrementHalfMoveClock() {
+        this.halfMoveClock++;
+    }
+
+    public int getHalfMoveClock() {
+        return this.halfMoveClock;
+    }
+
+    public void _test_triggerUpdateGameState() {
+        this.updateGameState();
+    }
+
+    public enum GameState {
+        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW
+    }
 
     public static class PiecePlacement {
         public final int row;
