@@ -548,9 +548,8 @@ public class GameTest {
             Pawn whitePawnD5 = new Pawn(PieceColor.WHITE);
             Pawn blackPawnC7 = new Pawn(PieceColor.BLACK);
 
-            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7)), PieceColor.WHITE);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7)), PieceColor.BLACK);
 
-            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
             Move blackPawnMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).orElseThrow(() -> new AssertionError("Black pawn c7-c5 move not found"));
             assertTrue(game.makeMove(blackPawnMove));
 
@@ -584,9 +583,8 @@ public class GameTest {
 
 
             List<Game.PiecePlacement> placements = List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7), new Game.PiecePlacement(6, 7, whitePawnH2), new Game.PiecePlacement(1, 0, blackPawnA7));
-            game.setupBoardForTest(placements, PieceColor.WHITE);
+            game.setupBoardForTest(placements, PieceColor.BLACK);
 
-            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
             Move blackPawnMove1 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).get(); // c5
             assertTrue(game.makeMove(blackPawnMove1));
 
@@ -607,9 +605,8 @@ public class GameTest {
         void enPassantNotLegalIfOpponentOneSquareMove() {
             Pawn whitePawnD5 = new Pawn(PieceColor.WHITE);
             Pawn blackPawnC6 = new Pawn(PieceColor.BLACK);
-            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(2, 2, blackPawnC6)), PieceColor.WHITE);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(2, 2, blackPawnC6)), PieceColor.BLACK);
 
-            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
             Move blackPawnMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 2, 2, 3, 2).get(); // c5
             assertTrue(game.makeMove(blackPawnMove));
 
@@ -623,9 +620,8 @@ public class GameTest {
         void undoEnPassantCapture() {
             Pawn whitePawnD5 = new Pawn(PieceColor.WHITE);
             Pawn blackPawnC7 = new Pawn(PieceColor.BLACK);
-            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7)), PieceColor.WHITE);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7)), PieceColor.BLACK);
 
-            game.setCurrentPlayerColorForTest(PieceColor.BLACK);
             Move blackPawnMoveToC5 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).get();
             assertTrue(game.makeMove(blackPawnMoveToC5));
 
@@ -641,6 +637,151 @@ public class GameTest {
 
             assertEquals(PieceColor.WHITE, game.getCurrentPlayer().getColor(), "Should be White's turn again (before the e.p. move).");
             assertEquals(blackPawnMoveToC5, game.getLastMove(), "Last move in history should be Black's c7-c5.");
+        }
+
+        @Test
+        @DisplayName("Black Pawn can perform en passant capture")
+        void blackPawnEnPassantLegal() {
+            Pawn blackPawnD4 = new Pawn(PieceColor.BLACK);
+            Pawn whitePawnC2 = new Pawn(PieceColor.WHITE);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(4, 3, blackPawnD4), new Game.PiecePlacement(6, 2, whitePawnC2)), PieceColor.WHITE);
+
+            Move whitePawnMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 2, 4, 2).orElseThrow(() -> new AssertionError("White pawn c2-c4 move not found"));
+            assertTrue(game.makeMove(whitePawnMove));
+
+            assertSame(game.getCurrentPlayer().getColor(), PieceColor.BLACK);
+            List<Move> blackMoves = game.getAllLegalMovesForPlayer(PieceColor.BLACK);
+
+            Optional<Move> enPassantMove = blackMoves.stream().filter(Move::isEnPassantMove).filter(m -> m.getStartSquare().getRow() == 4 && m.getStartSquare().getCol() == 3).filter(m -> m.getEndSquare().getRow() == 5 && m.getEndSquare().getCol() == 2).findFirst();
+
+            assertTrue(enPassantMove.isPresent(), "Black pawn d4 should have en passant capture to c3.");
+
+            Move epMove = enPassantMove.get();
+            assertSame(whitePawnC2, epMove.getPieceCaptured(), "Captured piece should be the white pawn from c4.");
+            assertEquals(board.getSquare(4, 2), epMove.getEnPassantCaptureSquare(), "En passant capture square should be c4.");
+
+            assertTrue(game.makeMove(epMove));
+            assertSame(blackPawnD4, board.getPiece(5, 2), "Black pawn should be at c3 after e.p.");
+            assertNull(board.getPiece(4, 3), "d4 should be empty.");
+            assertNull(board.getPiece(4, 2), "c4 (white pawn's original square after 2-step) should be empty after e.p. capture.");
+        }
+
+        @Test
+        @DisplayName("En passant is correctly invalidated by a subsequent move")
+        void enPassantInvalidatedByNextPly() {
+            Pawn whitePawnE5 = new Pawn(PieceColor.WHITE);
+            Pawn blackPawnD7 = new Pawn(PieceColor.BLACK);
+            King whiteKingE1 = new King(PieceColor.WHITE);
+            King blackKingE8 = new King(PieceColor.BLACK);
+
+            List<Game.PiecePlacement> placements = List.of(new Game.PiecePlacement(3, 4, whitePawnE5), new Game.PiecePlacement(1, 3, blackPawnD7), new Game.PiecePlacement(7, 4, whiteKingE1), new Game.PiecePlacement(0, 4, blackKingE8));
+            game.setupBoardForTest(placements, PieceColor.BLACK);
+
+            Move blackPawnD7D5 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 3, 3, 3).get();
+            assertTrue(game.makeMove(blackPawnD7D5));
+
+            Move whiteKingE1E2 = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 7, 4, 6, 4).get();
+            assertTrue(game.makeMove(whiteKingE1E2));
+
+            Move blackKingE8E7 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 0, 4, 1, 4).get();
+            assertTrue(game.makeMove(blackKingE8E7));
+
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+            boolean enPassantAvailable = whiteMoves.stream().anyMatch(m -> m.isEnPassantMove() && m.getStartSquare().getPiece() == whitePawnE5 && m.getEndSquare().getRow() == 2 && m.getEndSquare().getCol() == 3);
+
+            assertFalse(enPassantAvailable, "En passant e5xd6 should not be available after intermediate moves.");
+        }
+    }
+
+    @Nested
+    @DisplayName("Pawn Promotion Tests")
+    class PromotionTests {
+
+        @Test
+        @DisplayName("White Pawn promotes to Queen (no capture)")
+        void whitePawnPromotesToQueenNoCapture() {
+            Pawn whitePawnA7 = new Pawn(PieceColor.WHITE);
+            whitePawnA7.setHasMoved(true);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(1, 0, whitePawnA7, true)), PieceColor.WHITE);
+
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+            Optional<Move> promotionToQueenMove = findPromotionMove(whiteMoves, 1, 0, 0, 0, PieceType.QUEEN);
+
+            assertTrue(promotionToQueenMove.isPresent(), "Promotion to Queen move a7-a8=Q should be available.");
+
+            assertTrue(game.makeMove(promotionToQueenMove.get()));
+
+            Piece pieceAtA8 = board.getPiece(0, 0);
+            assertNotNull(pieceAtA8);
+            assertEquals(PieceType.QUEEN, pieceAtA8.getType(), "Piece at a8 should be a Queen.");
+            assertEquals(PieceColor.WHITE, pieceAtA8.getColor());
+            assertTrue(pieceAtA8.hasMoved(), "Promoted Queen should be marked as moved.");
+            assertNull(board.getPiece(1, 0), "a7 should be empty.");
+        }
+
+        @Test
+        @DisplayName("White Pawn promotes to Knight with capture")
+        void whitePawnPromotesToKnightWithCapture() {
+            Pawn whitePawnB7 = new Pawn(PieceColor.WHITE);
+            Rook blackRookC8 = new Rook(PieceColor.BLACK);
+            whitePawnB7.setHasMoved(true);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(1, 1, whitePawnB7, true), new Game.PiecePlacement(0, 2, blackRookC8)), PieceColor.WHITE);
+
+            List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
+            Optional<Move> promotionToKnightMove = findPromotionMove(whiteMoves, 1, 1, 0, 2, PieceType.KNIGHT);
+
+            assertTrue(promotionToKnightMove.isPresent(), "Promotion to Knight move b7xc8=N should be available.");
+            assertSame(blackRookC8, promotionToKnightMove.get().getPieceCaptured(), "Captured piece should be the black rook.");
+
+            assertTrue(game.makeMove(promotionToKnightMove.get()));
+
+            Piece pieceAtC8 = board.getPiece(0, 2);
+            assertNotNull(pieceAtC8);
+            assertEquals(PieceType.KNIGHT, pieceAtC8.getType(), "Piece at c8 should be a Knight.");
+            assertEquals(PieceColor.WHITE, pieceAtC8.getColor());
+            assertNull(board.getPiece(1, 1), "b7 should be empty.");
+        }
+
+        @Test
+        @DisplayName("Undo Pawn Promotion (no capture)")
+        void undoPawnPromotionNoCapture() {
+            Pawn whitePawnA7 = new Pawn(PieceColor.WHITE);
+            whitePawnA7.setHasMoved(true);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(1, 0, whitePawnA7, true)), PieceColor.WHITE);
+
+            Move promotionMove = findPromotionMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 1, 0, 0, 0, PieceType.QUEEN).get();
+            assertTrue(game.makeMove(promotionMove));
+
+            assertTrue(game.undoLastMove());
+
+            Piece pieceAtA7 = board.getPiece(1, 0);
+            assertNotNull(pieceAtA7);
+            assertEquals(PieceType.PAWN, pieceAtA7.getType(), "Should be a Pawn back at a7.");
+            // assertSame(whitePawnA7, pieceAtA7);
+            assertEquals(PieceColor.WHITE, pieceAtA7.getColor());
+            assertTrue(pieceAtA7.hasMoved(), "Pawn's original hasMoved status should be restored.");
+            assertNull(board.getPiece(0, 0), "a8 should be empty after undo.");
+            assertEquals(PieceColor.WHITE, game.getCurrentPlayer().getColor());
+        }
+
+        @Test
+        @DisplayName("Black Pawn promotes to Rook")
+        void blackPawnPromotesToRook() {
+            Pawn blackPawnH2 = new Pawn(PieceColor.BLACK);
+            blackPawnH2.setHasMoved(true);
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(6, 7, blackPawnH2, true)), PieceColor.BLACK);
+
+            List<Move> blackMoves = game.getAllLegalMovesForPlayer(PieceColor.BLACK);
+            Optional<Move> promotionToRookMove = findPromotionMove(blackMoves, 6, 7, 7, 7, PieceType.ROOK);
+
+            assertTrue(promotionToRookMove.isPresent(), "Promotion to Rook move h2-h1=R should be available.");
+
+            assertTrue(game.makeMove(promotionToRookMove.get()));
+
+            Piece pieceAtH1 = board.getPiece(7, 7);
+            assertNotNull(pieceAtH1);
+            assertEquals(PieceType.ROOK, pieceAtH1.getType());
+            assertEquals(PieceColor.BLACK, pieceAtH1.getColor());
         }
     }
 }
