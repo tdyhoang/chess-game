@@ -8,6 +8,7 @@ public class Game {
     private final Player whitePlayer;
     private final Player blackPlayer;
     private final List<Move> moveHistory;
+    private GameState previousGameState;
     // threefold repetition
     private final List<Long> positionHistoryHash;
     private Player currentPlayer;
@@ -482,4 +483,30 @@ public class Game {
     }
 
     // public long getBoardHash() {}
+
+    public boolean undoLastMove() {
+        if (moveHistory.isEmpty()) {
+            return false;
+        }
+        Move lastMove = moveHistory.remove(moveHistory.size() - 1);
+
+        board.undoMove(lastMove);
+
+        updateKingSquares();
+
+        switchPlayer();
+
+        if (lastMove.getPieceMoved().getType() == PieceType.PAWN || lastMove.getPieceCaptured() != null) {
+        } else {
+            if (halfMoveClock > 0) halfMoveClock--;
+        }
+
+
+        // removeLastPositionFromHistory();
+        // currentPositionHash = calculateCurrentBoardHash();
+
+        updateGameState();
+
+        return true;
+    }
 }
