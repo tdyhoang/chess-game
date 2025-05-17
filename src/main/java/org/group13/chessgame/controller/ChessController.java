@@ -1,10 +1,7 @@
 package org.group13.chessgame.controller;
 
-import org.group13.chessgame.model.*;
-// JavaFX imports
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -17,25 +14,31 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeType;
+import org.group13.chessgame.model.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class ChessController {
-    @FXML private GridPane boardGridPane;
-    @FXML private ImageView boardBackgroundImage;
-    @FXML private Label turnLabel;
-    @FXML private Label statusLabel;
-    @FXML private Button undoMoveButton;
-    @FXML private VBox capturedByWhiteBox;
-    @FXML private VBox capturedByBlackBox;
-
-    private Game gameModel;
-    private StackPane[][] squarePanes;
     private static final int BOARD_DISPLAY_SIZE = 600;
     private static final int SQUARE_SIZE = 75;
-
+    @FXML
+    private GridPane boardGridPane;
+    @FXML
+    private ImageView boardBackgroundImage;
+    @FXML
+    private Label turnLabel;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private Button undoMoveButton;
+    @FXML
+    private VBox capturedByWhiteBox;
+    @FXML
+    private VBox capturedByBlackBox;
+    private Game gameModel;
+    private StackPane[][] squarePanes;
     private Square selectedSquare = null;
     private List<Move> availableMovesForSelectedPiece = new ArrayList<>();
 
@@ -160,23 +163,18 @@ public class ChessController {
         if (selectedSquare == null) {
             if (clickedBoardSquare.hasPiece() && clickedBoardSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
                 selectedSquare = clickedBoardSquare;
-                availableMovesForSelectedPiece = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor())
-                        .stream()
-                        .filter(m -> m.getStartSquare() == selectedSquare)
-                        .toList();
+                List<Move> filteredMoves = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
+                availableMovesForSelectedPiece = new ArrayList<>(filteredMoves);
                 highlightSelectedSquare(squarePanes[row][col]);
                 highlightAvailableMoves();
             }
         } else {
-            Optional<Move> chosenMoveOpt = availableMovesForSelectedPiece.stream()
-                    .filter(m -> m.getEndSquare() == clickedBoardSquare)
-                    .findFirst();
+            Optional<Move> chosenMoveOpt = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == clickedBoardSquare).findFirst();
 
             if (chosenMoveOpt.isPresent()) {
                 Move chosenMove = chosenMoveOpt.get();
 
-                if (chosenMove.getPieceMoved().getType() == PieceType.PAWN &&
-                        (chosenMove.getEndSquare().getRow() == 0 || chosenMove.getEndSquare().getRow() == Board.SIZE - 1)) {
+                if (chosenMove.getPieceMoved().getType() == PieceType.PAWN && (chosenMove.getEndSquare().getRow() == 0 || chosenMove.getEndSquare().getRow() == Board.SIZE - 1)) {
 
                     PieceType promotionType = askForPromotionType();
                     if (promotionType == null) {
@@ -184,10 +182,7 @@ public class ChessController {
                         return;
                     }
                     final PieceType finalPromotionType = promotionType;
-                    chosenMove = availableMovesForSelectedPiece.stream()
-                            .filter(m -> m.getEndSquare() == clickedBoardSquare && m.isPromotion() && m.getPromotionPieceType() == finalPromotionType)
-                            .findFirst()
-                            .orElse(chosenMove);
+                    chosenMove = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == clickedBoardSquare && m.isPromotion() && m.getPromotionPieceType() == finalPromotionType).findFirst().orElse(chosenMove);
                 }
 
                 boolean moveMade = gameModel.makeMove(chosenMove);
@@ -205,10 +200,7 @@ public class ChessController {
             } else if (clickedBoardSquare.hasPiece() && clickedBoardSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
                 clearSelectionAndHighlights();
                 selectedSquare = clickedBoardSquare;
-                availableMovesForSelectedPiece = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor())
-                        .stream()
-                        .filter(m -> m.getStartSquare() == selectedSquare)
-                        .toList();
+                availableMovesForSelectedPiece = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
                 highlightSelectedSquare(squarePanes[row][col]);
                 highlightAvailableMoves();
             } else {
