@@ -58,7 +58,7 @@ public abstract class Piece {
                 typeStr = "K";
                 break;
         }
-        this.imagePath = String.format("resources/images/pieces/%s%s.svg", colorStr, typeStr);
+        this.imagePath = String.format("/images/piece/%s%s.png", colorStr, typeStr);
     }
 
     public abstract List<Move> getPseudoLegalMoves(Game game, int currentRow, int currentCol);
