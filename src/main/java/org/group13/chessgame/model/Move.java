@@ -5,6 +5,9 @@ public class Move {
     private final Square endSquare;
     private final Piece pieceMoved;
     private final boolean pieceMovedOriginalHasMoved;
+    private int halfMoveClockBeforeMove;
+    private long hashGeneratedByThisMove;
+    // private final Game.GameState gameStateBeforeMove;
     private Piece pieceCaptured;
     private Piece pieceOnRookStartForCastling;
     private boolean rookOriginalHasMoved;
@@ -21,7 +24,7 @@ public class Move {
         this.endSquare = endSquare;
         this.pieceMoved = pieceMoved;
         this.pieceMovedOriginalHasMoved = pieceMovedOriginalHasMoved;
-        if (endSquare.hasPiece()) {
+        if (endSquare.hasPiece() && !this.isEnPassantMove()) {
             this.pieceCaptured = endSquare.getPiece();
         } else {
             this.pieceCaptured = null;
@@ -60,6 +63,22 @@ public class Move {
     public void setRookInfoForCastlingUndo(Piece rook, boolean rookOriginalHasMoved) {
         this.pieceOnRookStartForCastling = rook;
         this.rookOriginalHasMoved = rookOriginalHasMoved;
+    }
+
+    public int getHalfMoveClockBeforeMove() {
+        return halfMoveClockBeforeMove;
+    }
+
+    public void setHalfMoveClockBeforeMove(int clock) {
+        this.halfMoveClockBeforeMove = clock;
+    }
+
+    public long getHashGenerated() {
+        return hashGeneratedByThisMove;
+    }
+
+    public void setHashGenerated(long hash) {
+        this.hashGeneratedByThisMove = hash;
     }
 
     public Piece getPieceOnRookStartForCastling() {
