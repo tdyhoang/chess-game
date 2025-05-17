@@ -6,6 +6,7 @@ public class Move {
     private final Piece pieceMoved;
     private final boolean pieceMovedOriginalHasMoved;
     private int halfMoveClockBeforeMove;
+    private Square enPassantTargetSquareBeforeMove;
     private long hashGeneratedByThisMove;
     // private final Game.GameState gameStateBeforeMove;
     private Piece pieceCaptured;
@@ -71,6 +72,14 @@ public class Move {
 
     public void setHalfMoveClockBeforeMove(int clock) {
         this.halfMoveClockBeforeMove = clock;
+    }
+
+    public Square getEnPassantTargetSquareBeforeMove() {
+        return enPassantTargetSquareBeforeMove;
+    }
+
+    public void setEnPassantTargetSquareBeforeMove(Square square) {
+        this.enPassantTargetSquareBeforeMove = square;
     }
 
     public long getHashGenerated() {

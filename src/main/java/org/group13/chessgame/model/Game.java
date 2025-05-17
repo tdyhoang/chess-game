@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.Map;
 
 public class Game {
-    // threefold repetition
     private static final ZobristTable zobristTable = new ZobristTable();
     private final Board board;
     private final Player whitePlayer;
     private final Player blackPlayer;
     private final List<Move> moveHistory;
+    // threefold repetition
     private final Map<Long, Integer> positionHistoryCount;
     private long currentPositionHash;
     // 50-move rule
@@ -80,6 +80,9 @@ public class Game {
                 }
             }
         }
+        this.currentPositionHash = calculateBoardHash();
+        this.positionHistoryCount.clear();
+        this.positionHistoryCount.put(this.currentPositionHash, 1);
         updateKingSquares();
         setCurrentPlayerColorForTest(playerWhoseTurnItIs);
         // updateGameState();
@@ -155,10 +158,11 @@ public class Game {
         }
 
         actualMoveToMake.setHalfMoveClockBeforeMove(this.halfMoveClock);
+        actualMoveToMake.setEnPassantTargetSquareBeforeMove(this.getEnPassantTargetSquare());
 
         long newHash = this.currentPositionHash;
 
-        Square oldEnPassantTarget = actualMoveToMake.getEnPassantCaptureSquare();
+        Square oldEnPassantTarget = actualMoveToMake.getEnPassantTargetSquareBeforeMove();
         if (oldEnPassantTarget != null) {
             newHash ^= zobristTable.getEnPassantFileKey(oldEnPassantTarget.getCol());
         }
@@ -182,6 +186,12 @@ public class Game {
             newHash ^= zobristTable.getPieceKey(capturedPiece.getType(), capturedPiece.getColor(), captureSquare.getRow(), captureSquare.getCol());
         }
 
+        if (actualMoveToMake.isCastlingMove()) {
+            Piece rookForCastling = actualMoveToMake.getPieceOnRookStartForCastling();
+            Square rookOriginalSquare = actualMoveToMake.getRookStartSquareForCastling();
+            newHash ^= zobristTable.getPieceKey(rookForCastling.getType(), rookForCastling.getColor(), rookOriginalSquare.getRow(), rookOriginalSquare.getCol());
+        }
+
         board.applyMove(actualMoveToMake);
 
         Piece pieceOnEndSquare = board.getPiece(actualMoveToMake.getEndSquare().getRow(), actualMoveToMake.getEndSquare().getCol());
@@ -191,10 +201,7 @@ public class Game {
 
         if (actualMoveToMake.isCastlingMove()) {
             Piece rookForCastling = actualMoveToMake.getPieceOnRookStartForCastling();
-            Square rookOriginalSquare = actualMoveToMake.getRookStartSquareForCastling();
             Square rookNewSquare = actualMoveToMake.getRookEndSquareForCastling();
-
-            newHash ^= zobristTable.getPieceKey(rookForCastling.getType(), rookForCastling.getColor(), rookOriginalSquare.getRow(), rookOriginalSquare.getCol());
             newHash ^= zobristTable.getPieceKey(rookForCastling.getType(), rookForCastling.getColor(), rookNewSquare.getRow(), rookNewSquare.getCol());
         }
 
@@ -270,9 +277,9 @@ public class Game {
             if (isFiftyMoveRule()) {
                 gameState = GameState.FIFTY_MOVE_DRAW;
             }
-            // if (isThreefoldRepetition()) {
-            //     gameState = GameState.THREEFOLD_REPETITION_DRAW;
-            // }
+            if (isThreefoldRepetition()) {
+                gameState = GameState.THREEFOLD_REPETITION_DRAW;
+            }
             if (isInsufficientMaterial()) {
                 gameState = GameState.INSUFFICIENT_MATERIAL_DRAW;
             }
@@ -491,9 +498,14 @@ public class Game {
         return false;
     }
 
-    // TODO: Implement Zobrist Hashing for threefold repetition
     // private void addCurrentPositionToHistory() {}
-    // private boolean isThreefoldRepetition() {}
+    private boolean isThreefoldRepetition() {
+        if (this.currentPositionHash == 0 && !this.positionHistoryCount.isEmpty()) {
+            System.err.println("Warning: Checking threefold repetition with uninitialized/zero currentPositionHash.");
+            return false;
+        }
+        return this.positionHistoryCount.getOrDefault(this.currentPositionHash, 0) >= 3;
+    }
 
     private int countPieceType(List<Piece> pieces, PieceType type) {
         int count = 0;
@@ -628,6 +640,15 @@ public class Game {
             return board.getSquare(lastMove.getEndSquare().getRow() - direction, lastMove.getEndSquare().getCol());
         }
         return null;
+    }
+
+    public long getCurrentPositionHash() {
+        return this.currentPositionHash;
+    }
+
+    public Map<Long, Integer> getPositionHistoryCount() {
+        // return Collections.unmodifiableMap(this.positionHistoryCount);
+        return this.positionHistoryCount;
     }
 
     public enum GameState {

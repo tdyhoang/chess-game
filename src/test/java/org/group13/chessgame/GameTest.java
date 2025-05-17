@@ -282,6 +282,31 @@ public class GameTest {
 
             assertEquals(Game.GameState.STALEMATE_DRAW, game.getGameState(), "Game state should be STALEMATE_DRAW.");
         }
+
+        @Test
+        @DisplayName("Back Rank Mate")
+        void backRankMate() {
+            // White: Ke1, Ra8. Black: Kg8, Pawns f7,g7,h7
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(7, 4, new King(PieceColor.WHITE)), new Game.PiecePlacement(0, 0, new Rook(PieceColor.WHITE)), new Game.PiecePlacement(0, 6, new King(PieceColor.BLACK)), new Game.PiecePlacement(1, 5, new Pawn(PieceColor.BLACK)), new Game.PiecePlacement(1, 6, new Pawn(PieceColor.BLACK)), new Game.PiecePlacement(1, 7, new Pawn(PieceColor.BLACK))), PieceColor.WHITE);
+
+            Move ra8e8 = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 0, 0, 0, 4).orElseThrow(() -> new AssertionError("Move Ra8-e8 not found."));
+            assertTrue(game.makeMove(ra8e8));
+
+            assertEquals(Game.GameState.WHITE_WINS_CHECKMATE, game.getGameState());
+            assertTrue(game.getAllLegalMovesForPlayer(PieceColor.BLACK).isEmpty());
+        }
+
+        @Test
+        @DisplayName("Queen and King vs King Checkmate")
+        void queenKingVsKingCheckmate() {
+            // White: Kc1, Qc2. Black: Ka1
+            game.setupBoardForTest(List.of(new Game.PiecePlacement(7, 2, new King(PieceColor.WHITE)), new Game.PiecePlacement(6, 2, new Queen(PieceColor.WHITE)), new Game.PiecePlacement(7, 0, new King(PieceColor.BLACK))), PieceColor.WHITE);
+
+            Move qc2b2 = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 2, 6, 1).orElseThrow(() -> new AssertionError("Move Qc2-b2 not found."));
+            assertTrue(game.makeMove(qc2b2));
+
+            assertEquals(Game.GameState.WHITE_WINS_CHECKMATE, game.getGameState());
+        }
     }
 
     @Nested
@@ -792,6 +817,7 @@ public class GameTest {
         @Test
         @DisplayName("Game is drawn after 50 moves (100 plies) without pawn move or capture")
         void testFiftyMoveDraw() {
+            // White: Ka1, Qb2. Black: Kc8
             game.setupBoardForTest(List.of(new Game.PiecePlacement(7, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(6, 1, new Queen(PieceColor.WHITE)), new Game.PiecePlacement(0, 2, new King(PieceColor.BLACK))), PieceColor.WHITE);
             assertEquals(0, game.getHalfMoveClock());
 
@@ -909,6 +935,131 @@ public class GameTest {
             game.setupBoardForTest(List.of(new Game.PiecePlacement(0, 0, new King(PieceColor.WHITE)), new Game.PiecePlacement(1, 0, new Rook(PieceColor.WHITE)), new Game.PiecePlacement(7, 7, new King(PieceColor.BLACK))), PieceColor.WHITE);
             game._test_triggerUpdateGameState();
             assertNotEquals(Game.GameState.INSUFFICIENT_MATERIAL_DRAW, game.getGameState(), "Game should not be a draw by insufficient material.");
+        }
+    }
+
+    @Nested
+    @DisplayName("Threefold Repetition Tests")
+    class ThreefoldRepetitionTests {
+        private void makeSpecificMove(Game game, int r1, int c1, int r2, int c2) {
+            Optional<Move> moveOpt = findMove(game.getAllLegalMovesForPlayer(game.getCurrentPlayer().getColor()), r1, c1, r2, c2);
+            assertTrue(moveOpt.isPresent(), String.format("Move %s%d to %s%d not found for %s", (char) ('a' + c1), 8 - r1, (char) ('a' + c2), 8 - r2, game.getCurrentPlayer().getColor()));
+            assertTrue(game.makeMove(moveOpt.get()));
+        }
+
+        private void makeSpecificPromotionMove(Game game, int r1, int c1, int r2, int c2, PieceType promotionType) {
+            Optional<Move> moveOpt = findPromotionMove(game.getAllLegalMovesForPlayer(game.getCurrentPlayer().getColor()), r1, c1, r2, c2, promotionType);
+            assertTrue(moveOpt.isPresent(), String.format("Promotion Move %s%d to %s%d=%s not found for %s", (char) ('a' + c1), 8 - r1, (char) ('a' + c2), 8 - r2, promotionType, game.getCurrentPlayer().getColor()));
+            assertTrue(game.makeMove(moveOpt.get()));
+        }
+
+
+        @Test
+        @DisplayName("Game is drawn after a position repeats three times with same side to move, castling rights, and en passant")
+        void testThreefoldRepetitionDrawStrict() {
+            game.initializeGame();
+
+            makeSpecificMove(game, 7, 6, 5, 5); // Nf3
+            long hashAfterW1 = game.getCurrentPositionHash();
+            assertEquals(1, game.getPositionHistoryCount().getOrDefault(hashAfterW1, 0));
+
+            makeSpecificMove(game, 0, 1, 2, 2); // Nc6
+            long hashAfterB1 = game.getCurrentPositionHash();
+            assertEquals(1, game.getPositionHistoryCount().getOrDefault(hashAfterB1, 0));
+
+            makeSpecificMove(game, 5, 5, 7, 6); // Ng1
+            long hashAfterW2 = game.getCurrentPositionHash();
+            assertEquals(1, game.getPositionHistoryCount().getOrDefault(hashAfterW2, 0));
+
+
+            makeSpecificMove(game, 2, 2, 0, 1); // Nb8
+            long hashAfterB2 = game.getCurrentPositionHash();
+            assertEquals(2, game.getPositionHistoryCount().getOrDefault(hashAfterB2, 0), "Initial position should have count 2.");
+
+
+            makeSpecificMove(game, 7, 6, 5, 5); // Nf3
+            assertEquals(2, game.getPositionHistoryCount().getOrDefault(game.getCurrentPositionHash(), 0), "Position after W:Nf3 (round 2) should have count 2.");
+            assertEquals(hashAfterW1, game.getCurrentPositionHash());
+
+
+            makeSpecificMove(game, 0, 1, 2, 2); // Nc6
+            assertEquals(2, game.getPositionHistoryCount().getOrDefault(game.getCurrentPositionHash(), 0), "Position after B:Nc6 (round 2) should have count 2.");
+            assertEquals(hashAfterB1, game.getCurrentPositionHash());
+            assertEquals(Game.GameState.ACTIVE, game.getGameState());
+
+
+            makeSpecificMove(game, 5, 5, 7, 6); // Ng1
+            assertEquals(2, game.getPositionHistoryCount().getOrDefault(game.getCurrentPositionHash(), 0));
+            assertEquals(hashAfterW2, game.getCurrentPositionHash());
+
+            makeSpecificMove(game, 2, 2, 0, 1); // Nb8
+            assertEquals(3, game.getPositionHistoryCount().getOrDefault(game.getCurrentPositionHash(), 0), "Initial position should now have count 3.");
+            assertEquals(hashAfterB2, game.getCurrentPositionHash());
+            assertEquals(Game.GameState.THREEFOLD_REPETITION_DRAW, game.getGameState());
+        }
+
+        @Test
+        @DisplayName("Repetition with different castling rights does not count as same position")
+        void testRepetitionDifferentCastlingRights() {
+            game.initializeGame();
+
+            makeSpecificMove(game, 6, 4, 4, 4); // e4
+            makeSpecificMove(game, 1, 4, 3, 4); // e5
+            long initialHash = game.getCurrentPositionHash();
+
+            makeSpecificMove(game, 7, 4, 6, 4); // Ke2
+            long hashPos2 = game.getCurrentPositionHash();
+            assertNotEquals(initialHash, hashPos2);
+
+
+            makeSpecificMove(game, 0, 4, 1, 4); // Ke7
+            long hashPos3 = game.getCurrentPositionHash();
+
+            makeSpecificMove(game, 6, 4, 7, 4); // Ke1
+            long hashPos4 = game.getCurrentPositionHash();
+            assertNotEquals(hashPos3, hashPos4);
+
+            makeSpecificMove(game, 1, 4, 0, 4); // Ke8.
+            long hashPos5 = game.getCurrentPositionHash();
+            assertNotEquals(initialHash, hashPos5, "Hash should be different from initial due to lost castling rights.");
+            assertEquals(1, game.getPositionHistoryCount().getOrDefault(hashPos5, 0));
+            assertEquals(Game.GameState.ACTIVE, game.getGameState());
+        }
+
+        @Test
+        @DisplayName("Repetition with different en passant target does not count as same position")
+        void testRepetitionDifferentEnPassant() {
+            game.initializeGame();
+            makeSpecificMove(game, 6, 4, 4, 4); // 1. e4
+            makeSpecificMove(game, 0, 1, 2, 2); // 1... Nc6
+            makeSpecificMove(game, 4, 4, 3, 4); // 2. e5
+            makeSpecificMove(game, 1, 3, 3, 3); // 3... d5
+            long hashWithEnPassant = game.getCurrentPositionHash();
+
+            makeSpecificMove(game, 7, 1, 5, 2); // 4. Nf3
+            makeSpecificMove(game, 2, 2, 0, 1); // 4... Nb8
+            makeSpecificMove(game, 5, 2, 7, 1); // 5. Nb1
+            makeSpecificMove(game, 0, 1, 2, 2); // 5... Nc6
+            long hashWithoutEnPassant = game.getCurrentPositionHash();
+            assertNotEquals(hashWithEnPassant, hashWithoutEnPassant, "Hash should be different if en passant is null vs non-null.");
+        }
+
+        @Test
+        @DisplayName("Undo move correctly restores position history count")
+        void testUndoRestoresPositionHistory() {
+            game.initializeGame();
+            long initialHash = game.getCurrentPositionHash();
+            assertEquals(1, game.getPositionHistoryCount().get(initialHash));
+
+            makeSpecificMove(game, 6, 4, 4, 4); // 1. e4
+            long hashAfterE4 = game.getCurrentPositionHash();
+            assertEquals(1, game.getPositionHistoryCount().get(hashAfterE4));
+
+            game.undoLastMove();
+
+            assertEquals(initialHash, game.getCurrentPositionHash(), "Hash should revert to initial after undo.");
+            assertEquals(1, game.getPositionHistoryCount().get(initialHash), "Count for initial hash should be 1 after undo.");
+            assertNull(game.getPositionHistoryCount().get(hashAfterE4), "Count for hashAfterE4 should be null (or 0 if we don't remove keys).");
         }
     }
 }
