@@ -21,6 +21,8 @@ public class Game {
     private GameState gameState;
     private Square whiteKingSquare;
     private Square blackKingSquare;
+    private final List<Piece> piecesCapturedByWhite;
+    private final List<Piece> piecesCapturedByBlack;
 
     public Game() {
         this.board = new Board();
@@ -28,6 +30,8 @@ public class Game {
         this.blackPlayer = new Player(PieceColor.BLACK);
         this.moveHistory = new ArrayList<>();
         this.positionHistoryCount = new HashMap<>();
+        this.piecesCapturedByWhite = new ArrayList<>();
+        this.piecesCapturedByBlack = new ArrayList<>();
     }
 
     public void initializeGame() {
@@ -40,6 +44,8 @@ public class Game {
         this.positionHistoryCount.clear();
         this.positionHistoryCount.put(this.currentPositionHash, 1);
         updateKingSquares();
+        this.piecesCapturedByWhite.clear();
+        this.piecesCapturedByBlack.clear();
         // addCurrentPositionToHistory();
     }
 
@@ -193,6 +199,15 @@ public class Game {
         }
 
         board.applyMove(actualMoveToMake);
+
+        Piece captured = actualMoveToMake.getPieceCaptured();
+        if (captured != null) {
+            if (captured.getColor() == PieceColor.BLACK) {
+                piecesCapturedByWhite.add(captured);
+            } else {
+                piecesCapturedByBlack.add(captured);
+            }
+        }
 
         Piece pieceOnEndSquare = board.getPiece(actualMoveToMake.getEndSquare().getRow(), actualMoveToMake.getEndSquare().getCol());
         if (pieceOnEndSquare != null) {
@@ -546,6 +561,15 @@ public class Game {
         }
         Move lastMove = moveHistory.remove(moveHistory.size() - 1);
 
+        Piece piecePutBackOnBoard = lastMove.getPieceCaptured();
+        if (piecePutBackOnBoard != null) {
+            if (piecePutBackOnBoard.getColor() == PieceColor.BLACK) {
+                piecesCapturedByWhite.remove(piecePutBackOnBoard);
+            } else {
+                piecesCapturedByBlack.remove(piecePutBackOnBoard);
+            }
+        }
+
         long hashThatWasGenerated = lastMove.getHashGenerated();
         int oldCount = this.positionHistoryCount.getOrDefault(hashThatWasGenerated, 0);
         if (oldCount > 0) {
@@ -649,6 +673,10 @@ public class Game {
     public Map<Long, Integer> getPositionHistoryCount() {
         // return Collections.unmodifiableMap(this.positionHistoryCount);
         return this.positionHistoryCount;
+    }
+
+    public List<Piece> getCapturedPieces(PieceColor capturerColor) {
+        return (capturerColor == PieceColor.WHITE) ? piecesCapturedByWhite : piecesCapturedByBlack;
     }
 
     public enum GameState {

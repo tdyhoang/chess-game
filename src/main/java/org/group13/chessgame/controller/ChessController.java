@@ -2,6 +2,7 @@ package org.group13.chessgame.controller;
 
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -13,7 +14,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.shape.StrokeType;
 import org.group13.chessgame.model.*;
 
 import java.util.ArrayList;
@@ -23,6 +23,8 @@ import java.util.Optional;
 public class ChessController {
     private static final int BOARD_DISPLAY_SIZE = 600;
     private static final int SQUARE_SIZE = 75;
+    private final List<Piece> whiteCapturedPieces = new ArrayList<>();
+    private final List<Piece> blackCapturedPieces = new ArrayList<>();
     @FXML
     private GridPane boardGridPane;
     @FXML
@@ -34,9 +36,9 @@ public class ChessController {
     @FXML
     private Button undoMoveButton;
     @FXML
-    private VBox capturedByWhiteBox;
+    private VBox capturedByWhiteArea;
     @FXML
-    private VBox capturedByBlackBox;
+    private VBox capturedByBlackArea;
     private Game gameModel;
     private StackPane[][] squarePanes;
     private Square selectedSquare = null;
@@ -46,19 +48,6 @@ public class ChessController {
     public void initialize() {
         this.gameModel = new Game();
         this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
-
-        try {
-            Image bgImage = new Image(getClass().getResourceAsStream("/images/board/brown.png"));
-            boardBackgroundImage.setImage(bgImage);
-            boardGridPane.setPrefSize(BOARD_DISPLAY_SIZE, BOARD_DISPLAY_SIZE);
-            boardGridPane.setMaxSize(BOARD_DISPLAY_SIZE, BOARD_DISPLAY_SIZE);
-            boardBackgroundImage.setFitWidth(BOARD_DISPLAY_SIZE);
-            boardBackgroundImage.setFitHeight(BOARD_DISPLAY_SIZE);
-
-        } catch (Exception e) {
-            System.err.println("Error loading board background image: " + e.getMessage());
-        }
-
         initializeBoardGrid();
         startNewGame();
     }
@@ -73,21 +62,25 @@ public class ChessController {
 
                 squarePane.setStyle("-fx-background-color: transparent;");
 
-                Rectangle highlightBorder = new Rectangle(SQUARE_SIZE, SQUARE_SIZE);
-                highlightBorder.setFill(Color.TRANSPARENT);
-                highlightBorder.setStroke(Color.TRANSPARENT);
-                highlightBorder.setStrokeWidth(3);
-                highlightBorder.setStrokeType(StrokeType.INSIDE);
-                highlightBorder.setMouseTransparent(true);
-                highlightBorder.setVisible(false);
-                squarePane.getChildren().add(highlightBorder);
+                Rectangle backgroundRect = new Rectangle(SQUARE_SIZE, SQUARE_SIZE);
+                if ((row + col) % 2 == 0) {
+                    backgroundRect.setFill(Color.web("#f0d9b5"));
+                } else {
+                    backgroundRect.setFill(Color.web("#b58863"));
+                }
+                squarePane.getChildren().add(backgroundRect);
 
                 ImageView pieceImageView = new ImageView();
-                pieceImageView.setFitWidth(SQUARE_SIZE * 0.85);
-                pieceImageView.setFitHeight(SQUARE_SIZE * 0.85);
+                pieceImageView.setFitWidth(SQUARE_SIZE * 0.8);
+                pieceImageView.setFitHeight(SQUARE_SIZE * 0.8);
                 pieceImageView.setPreserveRatio(true);
-                pieceImageView.setMouseTransparent(true);
                 squarePane.getChildren().add(pieceImageView);
+
+                javafx.scene.shape.Circle moveIndicator = new javafx.scene.shape.Circle(SQUARE_SIZE / 5.0);
+                moveIndicator.setOpacity(0.5);
+                moveIndicator.setVisible(false);
+                moveIndicator.setMouseTransparent(true);
+                squarePane.getChildren().add(moveIndicator);
 
                 squarePanes[row][col] = squarePane;
                 boardGridPane.add(squarePane, col, row);
@@ -107,8 +100,9 @@ public class ChessController {
         updateTurnLabel();
         updateStatusLabel("");
         undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
-        capturedByWhiteBox.getChildren().clear();
-        capturedByBlackBox.getChildren().clear();
+        whiteCapturedPieces.clear();
+        blackCapturedPieces.clear();
+        updateCapturedPiecesView();
     }
 
     private void refreshBoardView() {
@@ -135,17 +129,16 @@ public class ChessController {
                     pieceImageView.setImage(null);
                     pieceImageView.setVisible(false);
                 }
-                removeHighlight(squarePane);
+                removeHighlightStyling(squarePane);
             }
         }
     }
 
     private ImageView getPieceImageViewFromPane(StackPane pane) {
-        if (pane.getChildren().size() > 1 && pane.getChildren().get(1) instanceof ImageView) {
-            return (ImageView) pane.getChildren().get(1);
-        }
-        if (pane.getChildren().size() > 2 && pane.getChildren().get(2) instanceof ImageView) {
-            return (ImageView) pane.getChildren().get(2);
+        for (Node node : pane.getChildren()) {
+            if (node instanceof ImageView) {
+                return (ImageView) node;
+            }
         }
         System.err.println("Could not find piece ImageView in StackPane for refresh.");
         ImageView newImageView = new ImageView();
@@ -154,7 +147,7 @@ public class ChessController {
     }
 
     private void handleSquareClick(int row, int col) {
-        if (gameModel.getGameState() != Game.GameState.ACTIVE && gameModel.getGameState() != Game.GameState.CHECK) {
+        if (isGameOver()) {
             return;
         }
 
@@ -162,11 +155,7 @@ public class ChessController {
 
         if (selectedSquare == null) {
             if (clickedBoardSquare.hasPiece() && clickedBoardSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
-                selectedSquare = clickedBoardSquare;
-                List<Move> filteredMoves = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
-                availableMovesForSelectedPiece = new ArrayList<>(filteredMoves);
-                highlightSelectedSquare(squarePanes[row][col]);
-                highlightAvailableMoves();
+                selectPiece(clickedBoardSquare);
             }
         } else {
             Optional<Move> chosenMoveOpt = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == clickedBoardSquare).findFirst();
@@ -182,31 +171,48 @@ public class ChessController {
                         return;
                     }
                     final PieceType finalPromotionType = promotionType;
-                    chosenMove = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == clickedBoardSquare && m.isPromotion() && m.getPromotionPieceType() == finalPromotionType).findFirst().orElse(chosenMove);
+                    chosenMove = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == clickedBoardSquare && m.isPromotion() && m.getPromotionPieceType() == finalPromotionType).findFirst().orElseThrow(() -> new IllegalStateException("Selected promotion move not found in legal moves."));
                 }
 
-                boolean moveMade = gameModel.makeMove(chosenMove);
-                if (moveMade) {
-                    refreshBoardView();
-                    updateTurnLabel();
-                    updateStatusBasedOnGameState();
-                    undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
-                    // TODO: Update captured pieces view
-                } else {
-                    updateStatusLabel("Invalid move logic!");
-                }
-                clearSelectionAndHighlights();
+                performMove(chosenMove);
 
             } else if (clickedBoardSquare.hasPiece() && clickedBoardSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
                 clearSelectionAndHighlights();
-                selectedSquare = clickedBoardSquare;
-                availableMovesForSelectedPiece = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
-                highlightSelectedSquare(squarePanes[row][col]);
-                highlightAvailableMoves();
+                selectPiece(clickedBoardSquare);
             } else {
                 clearSelectionAndHighlights();
             }
         }
+    }
+
+    private void selectPiece(Square squareToSelect) {
+        selectedSquare = squareToSelect;
+        List<Move> filteredMoves = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
+        availableMovesForSelectedPiece = new ArrayList<>(filteredMoves);
+        highlightSelectedSquare(squarePanes[squareToSelect.getRow()][squareToSelect.getCol()]);
+        highlightAvailableMoves();
+    }
+
+    private void performMove(Move move) {
+        boolean moveMade = gameModel.makeMove(move);
+        if (moveMade) {
+            refreshBoardView();
+            updateTurnLabel();
+            updateStatusBasedOnGameState();
+            undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
+            Piece captured = move.getPieceCaptured();
+            if (captured != null) {
+                if (captured.getColor() == PieceColor.BLACK) {
+                    whiteCapturedPieces.add(captured);
+                } else {
+                    blackCapturedPieces.add(captured);
+                }
+            }
+            updateCapturedPiecesView();
+        } else {
+            updateStatusLabel("Error: Invalid move attempted!");
+        }
+        clearSelectionAndHighlights();
     }
 
     private PieceType askForPromotionType() {
@@ -236,49 +242,43 @@ public class ChessController {
 
     private void clearSelectionAndHighlights() {
         if (selectedSquare != null) {
-            removeHighlight(squarePanes[selectedSquare.getRow()][selectedSquare.getCol()]);
+            removeHighlightStyling(squarePanes[selectedSquare.getRow()][selectedSquare.getCol()]);
         }
         for (Move move : availableMovesForSelectedPiece) {
-            removeHighlight(squarePanes[move.getEndSquare().getRow()][move.getEndSquare().getCol()]);
+            removeHighlightStyling(squarePanes[move.getEndSquare().getRow()][move.getEndSquare().getCol()]);
         }
         selectedSquare = null;
         availableMovesForSelectedPiece.clear();
     }
 
     private void highlightSelectedSquare(StackPane pane) {
-        getHighlightBorderFromPane(pane).ifPresent(rect -> {
-            rect.setStroke(Color.YELLOW);
-            rect.setVisible(true);
-        });
+        pane.setStyle("-fx-border-color: gold; -fx-border-width: 3;");
     }
 
     private void highlightAvailableMoves() {
         for (Move move : availableMovesForSelectedPiece) {
             StackPane targetPane = squarePanes[move.getEndSquare().getRow()][move.getEndSquare().getCol()];
-            getHighlightBorderFromPane(targetPane).ifPresent(rect -> {
-                if (gameModel.getBoard().getSquare(move.getEndSquare().getRow(), move.getEndSquare().getCol()).hasPiece()) {
-                    rect.setStroke(Color.rgb(255, 0, 0, 0.7));
+            if (targetPane.getChildren().size() > 2 && targetPane.getChildren().get(2) instanceof javafx.scene.shape.Circle indicator) {
+                if (move.getPieceCaptured() != null || move.isEnPassantMove()) {
+                    indicator.setFill(Color.DARKRED);
                 } else {
-                    rect.setStroke(Color.rgb(0, 255, 0, 0.5));
+                    indicator.setFill(Color.DARKGREEN);
                 }
-                rect.setVisible(true);
-            });
+                indicator.setVisible(true);
+            }
         }
     }
 
-    private Optional<Rectangle> getHighlightBorderFromPane(StackPane pane) {
-        if (!pane.getChildren().isEmpty() && pane.getChildren().get(0) instanceof Rectangle) {
-            return Optional.of((Rectangle) pane.getChildren().get(0));
+    private void removeHighlightStyling(StackPane pane) {
+        pane.setStyle("");
+        if (pane.getChildren().size() > 2 && pane.getChildren().get(2) instanceof javafx.scene.shape.Circle indicator) {
+            indicator.setVisible(false);
         }
-        System.err.println("Highlight border rectangle not found in StackPane.");
-        return Optional.empty();
     }
 
-    private void removeHighlight(StackPane pane) {
-        getHighlightBorderFromPane(pane).ifPresent(rect -> {
-            rect.setStroke(Color.TRANSPARENT);
-            rect.setVisible(false);
-        });
+    private boolean isGameOver() {
+        Game.GameState state = gameModel.getGameState();
+        return state != Game.GameState.ACTIVE && state != Game.GameState.CHECK;
     }
 
     private void updateTurnLabel() {
@@ -341,7 +341,32 @@ public class ChessController {
             updateTurnLabel();
             updateStatusBasedOnGameState();
             undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
-            // TODO: Update captured pieces view
+            updateCapturedPiecesView();
+        }
+    }
+
+    private void updateCapturedPiecesView() {
+        capturedByWhiteArea.getChildren().clear();
+        capturedByBlackArea.getChildren().clear();
+
+        List<Piece> capturedByWhite = gameModel.getCapturedPieces(PieceColor.WHITE);
+        List<Piece> capturedByBlack = gameModel.getCapturedPieces(PieceColor.BLACK);
+
+        List<Piece> sortedWhiteCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.WHITE));
+        // TODO: Implement comparator for sorting pieces by value (Q > R > B > N > P)
+        for (Piece captured : sortedWhiteCaptures) {
+            ImageView imgView = new ImageView(new Image(getClass().getResourceAsStream(captured.getImagePath())));
+            imgView.setFitHeight(SQUARE_SIZE * 0.4);
+            imgView.setPreserveRatio(true);
+            capturedByWhiteArea.getChildren().add(imgView);
+        }
+
+        List<Piece> sortedBlackCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.BLACK));
+        for (Piece captured : sortedBlackCaptures) {
+            ImageView imgView = new ImageView(new Image(getClass().getResourceAsStream(captured.getImagePath())));
+            imgView.setFitHeight(SQUARE_SIZE * 0.4);
+            imgView.setPreserveRatio(true);
+            capturedByBlackArea.getChildren().add(imgView);
         }
     }
 }

@@ -27,9 +27,9 @@
 
             <!-- TODO: Fill more stuffs -->
             <Label text="Captured by White:"/>
-            <VBox fx:id="capturedByWhiteBox" minHeight="50" style="-fx-border-color: gray; -fx-padding: 5;"/>
+            <VBox fx:id="capturedByWhiteArea" minHeight="50" style="-fx-border-color: gray; -fx-padding: 5;"/>
             <Label text="Captured by Black:"/>
-            <VBox fx:id="capturedByBlackBox" minHeight="50" style="-fx-border-color: gray; -fx-padding: 5;"/>
+            <VBox fx:id="capturedByBlackArea" minHeight="50" style="-fx-border-color: gray; -fx-padding: 5;"/>
 
         </VBox>
     </right>
