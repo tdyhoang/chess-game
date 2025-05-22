@@ -25,11 +25,12 @@
                     disable="true"/>
             <Label fx:id="statusLabel" text="" style="-fx-font-size: 14px; -fx-text-fill: red; -fx-font-weight: bold;"/>
 
-            <!-- TODO: Fill more stuffs -->
             <Label text="Captured by White:"/>
             <VBox fx:id="capturedByWhiteArea" minHeight="50" style="-fx-border-color: gray; -fx-padding: 5;"/>
             <Label text="Captured by Black:"/>
             <VBox fx:id="capturedByBlackArea" minHeight="50" style="-fx-border-color: gray; -fx-padding: 5;"/>
+            <Label text="Move History:" style="-fx-font-weight: bold;"/>
+            <ListView fx:id="moveHistoryListView" prefHeight="200.0"/>
 
         </VBox>
     </right>

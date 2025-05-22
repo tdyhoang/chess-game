@@ -11,6 +11,8 @@ public class Game {
     private final Player whitePlayer;
     private final Player blackPlayer;
     private final List<Move> moveHistory;
+    private final List<Piece> piecesCapturedByWhite;
+    private final List<Piece> piecesCapturedByBlack;
     // threefold repetition
     private final Map<Long, Integer> positionHistoryCount;
     private long currentPositionHash;
@@ -21,8 +23,6 @@ public class Game {
     private GameState gameState;
     private Square whiteKingSquare;
     private Square blackKingSquare;
-    private final List<Piece> piecesCapturedByWhite;
-    private final List<Piece> piecesCapturedByBlack;
 
     public Game() {
         this.board = new Board();

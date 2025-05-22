@@ -1,12 +1,11 @@
 package org.group13.chessgame.controller;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
@@ -15,6 +14,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.group13.chessgame.model.*;
+import org.group13.chessgame.utils.NotationUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,15 +39,19 @@ public class ChessController {
     private VBox capturedByWhiteArea;
     @FXML
     private VBox capturedByBlackArea;
+    @FXML
+    private ListView<String> moveHistoryListView;
     private Game gameModel;
     private StackPane[][] squarePanes;
     private Square selectedSquare = null;
     private List<Move> availableMovesForSelectedPiece = new ArrayList<>();
+    private final ObservableList<String> moveHistoryObservableList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
         this.gameModel = new Game();
         this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
+        moveHistoryListView.setItems(moveHistoryObservableList);
         initializeBoardGrid();
         startNewGame();
     }
@@ -96,6 +100,7 @@ public class ChessController {
         gameModel.initializeGame();
         selectedSquare = null;
         availableMovesForSelectedPiece.clear();
+        moveHistoryObservableList.clear();
         refreshBoardView();
         updateTurnLabel();
         updateStatusLabel("");
@@ -196,10 +201,11 @@ public class ChessController {
     private void performMove(Move move) {
         boolean moveMade = gameModel.makeMove(move);
         if (moveMade) {
+            addMoveToHistoryView(move);
             refreshBoardView();
             updateTurnLabel();
             updateStatusBasedOnGameState();
-            undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
+            undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty() || isGameOver());
             Piece captured = move.getPieceCaptured();
             if (captured != null) {
                 if (captured.getColor() == PieceColor.BLACK) {
@@ -337,6 +343,7 @@ public class ChessController {
     @FXML
     private void handleUndoMove() {
         if (gameModel.undoLastMove()) {
+            removeLastMoveFromHistoryView();
             refreshBoardView();
             updateTurnLabel();
             updateStatusBasedOnGameState();
@@ -367,6 +374,60 @@ public class ChessController {
             imgView.setFitHeight(SQUARE_SIZE * 0.4);
             imgView.setPreserveRatio(true);
             capturedByBlackArea.getChildren().add(imgView);
+        }
+    }
+
+    private void addMoveToHistoryView(Move move) {
+        String algebraicNotation = NotationUtils.moveToAlgebraic(move, gameModel.getBoard());
+
+        String moveText;
+        if (move.getPieceMoved().getColor() == PieceColor.WHITE) {
+            int moveNumber = gameModel.getMoveHistory().size() / 2 + 1;
+            if (gameModel.getMoveHistory().size() % 2 != 0) {
+                moveNumber = (gameModel.getMoveHistory().size() + 1) / 2;
+            } else {
+                moveNumber = gameModel.getMoveHistory().size() / 2;
+                if (moveNumber == 0 && gameModel.getMoveHistory().size() > 0) moveNumber = 1;
+            }
+            moveText = moveNumber + ". " + algebraicNotation;
+            moveHistoryObservableList.add(moveText);
+        } else {
+            if (!moveHistoryObservableList.isEmpty()) {
+                int lastIndex = moveHistoryObservableList.size() - 1;
+                String lastEntry = moveHistoryObservableList.get(lastIndex);
+                if (!lastEntry.contains("...")) {
+                    moveHistoryObservableList.set(lastIndex, lastEntry + "  " + algebraicNotation);
+                } else {
+                    int moveNumber = gameModel.getMoveHistory().size() / 2;
+                    moveText = moveNumber + ". ... " + algebraicNotation;
+                    moveHistoryObservableList.add(moveText);
+                }
+            } else {
+                moveText = "1. ... " + algebraicNotation;
+                moveHistoryObservableList.add(moveText);
+            }
+        }
+        moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
+    }
+
+    private void removeLastMoveFromHistoryView() {
+        if (!moveHistoryObservableList.isEmpty()) {
+            int lastIndex = moveHistoryObservableList.size() - 1;
+            String lastEntry = moveHistoryObservableList.get(lastIndex);
+
+            if (gameModel.getCurrentPlayer().getColor() == PieceColor.BLACK) {
+                int secondMoveStartIndex = lastEntry.indexOf("  ");
+                if (secondMoveStartIndex != -1 && lastEntry.substring(0, secondMoveStartIndex).contains(".")) {
+                    moveHistoryObservableList.set(lastIndex, lastEntry.substring(0, secondMoveStartIndex));
+                } else {
+                    moveHistoryObservableList.remove(lastIndex);
+                }
+            } else {
+                moveHistoryObservableList.remove(lastIndex);
+            }
+        }
+        if (!moveHistoryObservableList.isEmpty()) {
+            moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
         }
     }
 }
