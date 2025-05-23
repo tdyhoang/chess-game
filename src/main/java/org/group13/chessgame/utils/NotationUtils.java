@@ -11,16 +11,14 @@ public class NotationUtils {
         return "" + file + rank;
     }
 
-    public static String moveToAlgebraic(Move move, Board board) {
-        if (move == null) return "";
+    public static String moveToAlgebraic(Move move, Game game) {
+        if (move == null || game == null) return "";
+        Board board = game.getBoard();
 
         // Castle
         if (move.isCastlingMove()) {
-            if (move.getEndSquare().getCol() < move.getStartSquare().getCol()) {
-                return "O-O-O";
-            } else {
-                return "O-O";
-            }
+            String suffix = getCheckOrCheckmateSuffix(game);
+            return (move.getEndSquare().getCol() < move.getStartSquare().getCol() ? "O-O-O" : "O-O") + suffix;
         }
 
         StringBuilder sb = new StringBuilder();
@@ -32,18 +30,17 @@ public class NotationUtils {
         }
 
         // 2. TODO: Xử lý trường hợp có nhiều quân cờ cùng loại có thể đi đến ô đó
-
-        // 3. Tên quân cờ bị ăn
+        // Trước mắt xử lý tốt (chốt), còn lại tính sau
         if (pieceMoved.getType() == PieceType.PAWN && move.getPieceCaptured() != null) {
             sb.append(squareToAlgebraic(move.getStartSquare()).charAt(0));
         }
 
-        // 4. Ký hiệu ăn (x)
+        // 3. Ký hiệu ăn (x)
         if (move.getPieceCaptured() != null) {
             sb.append("x");
         }
 
-        // 5. Ô đích
+        // 4. Ô đích
         sb.append(squareToAlgebraic(move.getEndSquare()));
 
         // 6. Phong cấp tốt
@@ -51,16 +48,25 @@ public class NotationUtils {
             sb.append("=").append(getPieceChar(move.getPromotionPieceType()));
         }
 
-        // 7. TODO: Check (+) hoặc checkmate (#)
-//        if (game.isKingInCheck(game.getCurrentPlayer().getColor().opposite())) {
-//            if (game.getGameState() == Game.GameState.WHITE_WINS_CHECKMATE || game.getGameState() == Game.GameState.BLACK_WINS_CHECKMATE) {
-//                sb.append("#");
-//            } else {
-//                sb.append("+");
-//            }
-//        }
+        // 7. Check (+) hoặc checkmate (#)
+        sb.append(getCheckOrCheckmateSuffix(game));
 
         return sb.toString();
+    }
+
+    private static String getCheckOrCheckmateSuffix(Game game) {
+        Game.GameState currentState = game.getGameState();
+
+        if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE) {
+            return "#";
+        } else if (currentState == Game.GameState.CHECK) {
+            if (game.isKingInCheck(game.getCurrentPlayer().getColor())) {
+                return "+";
+            }
+        }
+        if (currentState == Game.GameState.CHECK) return "+";
+
+        return "";
     }
 
     private static String getPieceChar(PieceType type) {

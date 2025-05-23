@@ -25,6 +25,7 @@ public class ChessController {
     private static final int SQUARE_SIZE = 75;
     private final List<Piece> whiteCapturedPieces = new ArrayList<>();
     private final List<Piece> blackCapturedPieces = new ArrayList<>();
+    private final ObservableList<String> moveHistoryObservableList = FXCollections.observableArrayList();
     @FXML
     private GridPane boardGridPane;
     @FXML
@@ -45,7 +46,6 @@ public class ChessController {
     private StackPane[][] squarePanes;
     private Square selectedSquare = null;
     private List<Move> availableMovesForSelectedPiece = new ArrayList<>();
-    private final ObservableList<String> moveHistoryObservableList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
@@ -378,33 +378,22 @@ public class ChessController {
     }
 
     private void addMoveToHistoryView(Move move) {
-        String algebraicNotation = NotationUtils.moveToAlgebraic(move, gameModel.getBoard());
+        String algebraicNotation = NotationUtils.moveToAlgebraic(move, gameModel);
+        int moveNumber = (gameModel.getMoveHistory().size() + 1) / 2;
 
-        String moveText;
         if (move.getPieceMoved().getColor() == PieceColor.WHITE) {
-            int moveNumber = gameModel.getMoveHistory().size() / 2 + 1;
-            if (gameModel.getMoveHistory().size() % 2 != 0) {
-                moveNumber = (gameModel.getMoveHistory().size() + 1) / 2;
-            } else {
-                moveNumber = gameModel.getMoveHistory().size() / 2;
-                if (moveNumber == 0 && gameModel.getMoveHistory().size() > 0) moveNumber = 1;
-            }
-            moveText = moveNumber + ". " + algebraicNotation;
-            moveHistoryObservableList.add(moveText);
+            moveHistoryObservableList.add(moveNumber + ". " + algebraicNotation);
         } else {
             if (!moveHistoryObservableList.isEmpty()) {
                 int lastIndex = moveHistoryObservableList.size() - 1;
                 String lastEntry = moveHistoryObservableList.get(lastIndex);
-                if (!lastEntry.contains("...")) {
+                if (lastEntry.matches("^\\d+\\.\\s[^\\s]+$")) {
                     moveHistoryObservableList.set(lastIndex, lastEntry + "  " + algebraicNotation);
                 } else {
-                    int moveNumber = gameModel.getMoveHistory().size() / 2;
-                    moveText = moveNumber + ". ... " + algebraicNotation;
-                    moveHistoryObservableList.add(moveText);
+                    moveHistoryObservableList.add(moveNumber + ". ... " + algebraicNotation);
                 }
             } else {
-                moveText = "1. ... " + algebraicNotation;
-                moveHistoryObservableList.add(moveText);
+                moveHistoryObservableList.add(moveNumber + ". ... " + algebraicNotation);
             }
         }
         moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
