@@ -17,7 +17,7 @@ public class MainApp extends Application {
         try {
             FXMLLoader fxmlLoader = new FXMLLoader(MainApp.class.getResource("chess-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
-            // scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
             stage.setTitle("JavaFX Chess Game");
             stage.setScene(scene);
             stage.setResizable(false);

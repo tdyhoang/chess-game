@@ -9,13 +9,16 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 import javafx.scene.shape.Rectangle;
 import org.group13.chessgame.model.*;
 import org.group13.chessgame.utils.NotationUtils;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +49,7 @@ public class ChessController {
     private StackPane[][] squarePanes;
     private Square selectedSquare = null;
     private List<Move> availableMovesForSelectedPiece = new ArrayList<>();
+    private MediaPlayer moveSoundPlayer, captureSoundPlayer, checkSoundPlayer, endGameSoundPlayer, castleSoundPlayer, promoteSoundPlayer;
 
     @FXML
     public void initialize() {
@@ -53,6 +57,7 @@ public class ChessController {
         this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
         moveHistoryListView.setItems(moveHistoryObservableList);
         initializeBoardGrid();
+        loadSounds();
         startNewGame();
     }
 
@@ -68,11 +73,19 @@ public class ChessController {
 
                 Rectangle backgroundRect = new Rectangle(SQUARE_SIZE, SQUARE_SIZE);
                 if ((row + col) % 2 == 0) {
-                    backgroundRect.setFill(Color.web("#f0d9b5"));
+                    backgroundRect.getStyleClass().add("light-square-background");
                 } else {
-                    backgroundRect.setFill(Color.web("#b58863"));
+                    backgroundRect.getStyleClass().add("dark-square-background");
                 }
                 squarePane.getChildren().add(backgroundRect);
+                squarePane.getStyleClass().add("chess-square-pane");
+
+                Region selectionHighlightRegion = new Region();
+                selectionHighlightRegion.setPrefSize(SQUARE_SIZE, SQUARE_SIZE);
+                selectionHighlightRegion.getStyleClass().add("selected-square-highlight-border");
+                selectionHighlightRegion.setVisible(false);
+                selectionHighlightRegion.setMouseTransparent(true);
+                squarePane.getChildren().add(selectionHighlightRegion);
 
                 ImageView pieceImageView = new ImageView();
                 pieceImageView.setFitWidth(SQUARE_SIZE * 0.8);
@@ -81,7 +94,7 @@ public class ChessController {
                 squarePane.getChildren().add(pieceImageView);
 
                 javafx.scene.shape.Circle moveIndicator = new javafx.scene.shape.Circle(SQUARE_SIZE / 5.0);
-                moveIndicator.setOpacity(0.5);
+                moveIndicator.getStyleClass().add("move-indicator-dot");
                 moveIndicator.setVisible(false);
                 moveIndicator.setMouseTransparent(true);
                 squarePane.getChildren().add(moveIndicator);
@@ -198,9 +211,49 @@ public class ChessController {
         highlightAvailableMoves();
     }
 
+    private void loadSounds() {
+        try {
+            moveSoundPlayer = createMediaPlayer("/sound/Move.mp3");
+            captureSoundPlayer = createMediaPlayer("/sound/Capture.mp3");
+            checkSoundPlayer = createMediaPlayer("/sound/Check.mp3");
+            endGameSoundPlayer = createMediaPlayer("/sound/Checkmate.mp3");
+            castleSoundPlayer = createMediaPlayer("/sound/Move.mp3");
+            promoteSoundPlayer = createMediaPlayer("/sound/Confirmation.mp3");
+        } catch (Exception e) {
+            System.err.println("Error loading sounds: " + e.getMessage());
+        }
+    }
+
+    private MediaPlayer createMediaPlayer(String resourcePath) {
+        URL resourceUrl = getClass().getResource(resourcePath);
+        if (resourceUrl == null) {
+            System.err.println("Cannot find sound resource: " + resourcePath);
+            return null;
+        }
+        Media media = new Media(resourceUrl.toExternalForm());
+        return new MediaPlayer(media);
+    }
+
+    private void playSound(MediaPlayer player) {
+        if (player != null) {
+            player.stop();
+            player.seek(player.getStartTime());
+            player.play();
+        }
+    }
+
     private void performMove(Move move) {
         boolean moveMade = gameModel.makeMove(move);
         if (moveMade) {
+            if (move.isCastlingMove()) {
+                playSound(castleSoundPlayer);
+            } else if (move.isPromotion()) {
+                playSound(promoteSoundPlayer);
+            } else if (move.getPieceCaptured() != null) {
+                playSound(captureSoundPlayer);
+            } else {
+                playSound(moveSoundPlayer);
+            }
             addMoveToHistoryView(move);
             refreshBoardView();
             updateTurnLabel();
@@ -247,28 +300,37 @@ public class ChessController {
     }
 
     private void clearSelectionAndHighlights() {
-        if (selectedSquare != null) {
-            removeHighlightStyling(squarePanes[selectedSquare.getRow()][selectedSquare.getCol()]);
-        }
-        for (Move move : availableMovesForSelectedPiece) {
-            removeHighlightStyling(squarePanes[move.getEndSquare().getRow()][move.getEndSquare().getCol()]);
+        for (int r = 0; r < Board.SIZE; r++) {
+            for (int c = 0; c < Board.SIZE; c++) {
+                StackPane pane = squarePanes[r][c];
+                if (pane.getChildren().size() > 1 && pane.getChildren().get(1) instanceof Region) {
+                    pane.getChildren().get(1).setVisible(false);
+                }
+                if (pane.getChildren().size() > 3 && pane.getChildren().get(3) instanceof javafx.scene.shape.Circle) {
+                    pane.getChildren().get(3).setVisible(false);
+                }
+            }
         }
         selectedSquare = null;
         availableMovesForSelectedPiece.clear();
     }
 
     private void highlightSelectedSquare(StackPane pane) {
-        pane.setStyle("-fx-border-color: gold; -fx-border-width: 3;");
+        if (pane.getChildren().size() > 1 && pane.getChildren().get(1) instanceof Region borderRegion) {
+            borderRegion.setVisible(true);
+        }
     }
 
     private void highlightAvailableMoves() {
         for (Move move : availableMovesForSelectedPiece) {
             StackPane targetPane = squarePanes[move.getEndSquare().getRow()][move.getEndSquare().getCol()];
-            if (targetPane.getChildren().size() > 2 && targetPane.getChildren().get(2) instanceof javafx.scene.shape.Circle indicator) {
+            if (targetPane.getChildren().size() > 3 && targetPane.getChildren().get(3) instanceof javafx.scene.shape.Circle indicator) {
+                indicator.getStyleClass().clear();
+                indicator.getStyleClass().add("move-indicator-dot");
                 if (move.getPieceCaptured() != null || move.isEnPassantMove()) {
-                    indicator.setFill(Color.DARKRED);
+                    indicator.getStyleClass().add("move-indicator-dot-capture");
                 } else {
-                    indicator.setFill(Color.DARKGREEN);
+                    indicator.getStyleClass().add("move-indicator-dot-normal");
                 }
                 indicator.setVisible(true);
             }
@@ -276,9 +338,11 @@ public class ChessController {
     }
 
     private void removeHighlightStyling(StackPane pane) {
-        pane.setStyle("");
+        pane.getStyleClass().remove("selected-square-highlight-border");
         if (pane.getChildren().size() > 2 && pane.getChildren().get(2) instanceof javafx.scene.shape.Circle indicator) {
             indicator.setVisible(false);
+            indicator.getStyleClass().remove("move-indicator-dot-capture");
+            indicator.getStyleClass().remove("move-indicator-dot-normal");
         }
     }
 
@@ -326,6 +390,11 @@ public class ChessController {
                 break;
         }
         statusLabel.setText(status);
+        if (currentState == Game.GameState.CHECK) {
+            playSound(checkSoundPlayer);
+        } else if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE || currentState == Game.GameState.STALEMATE_DRAW || currentState == Game.GameState.FIFTY_MOVE_DRAW || currentState == Game.GameState.THREEFOLD_REPETITION_DRAW || currentState == Game.GameState.INSUFFICIENT_MATERIAL_DRAW) {
+            playSound(endGameSoundPlayer);
+        }
         if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Game Over");
@@ -363,6 +432,7 @@ public class ChessController {
         // TODO: Implement comparator for sorting pieces by value (Q > R > B > N > P)
         for (Piece captured : sortedWhiteCaptures) {
             ImageView imgView = new ImageView(new Image(getClass().getResourceAsStream(captured.getImagePath())));
+            imgView.getStyleClass().add("captured-piece-image");
             imgView.setFitHeight(SQUARE_SIZE * 0.4);
             imgView.setPreserveRatio(true);
             capturedByWhiteArea.getChildren().add(imgView);
@@ -371,6 +441,7 @@ public class ChessController {
         List<Piece> sortedBlackCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.BLACK));
         for (Piece captured : sortedBlackCaptures) {
             ImageView imgView = new ImageView(new Image(getClass().getResourceAsStream(captured.getImagePath())));
+            imgView.getStyleClass().add("captured-piece-image");
             imgView.setFitHeight(SQUARE_SIZE * 0.4);
             imgView.setPreserveRatio(true);
             capturedByBlackArea.getChildren().add(imgView);

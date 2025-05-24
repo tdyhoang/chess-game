@@ -2,35 +2,33 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<BorderPane fx:id="rootPane" prefHeight="700.0" prefWidth="900.0" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="org.group13.chessgame.controller.ChessController">
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" prefHeight="700.0" prefWidth="900.0"
+            fx:controller="org.group13.chessgame.controller.ChessController" styleClass="root-pane">
     <center>
-        <StackPane alignment="CENTER">
-            <ImageView fx:id="boardBackgroundImage" fitWidth="600" fitHeight="600" preserveRatio="true"/>
-            <GridPane fx:id="boardGridPane" alignment="CENTER" hgap="0" vgap="0">
-            </GridPane>
-        </StackPane>
+        <GridPane fx:id="boardGridPane" alignment="CENTER" hgap="0" vgap="0" styleClass="board-grid-pane">
+        </GridPane>
     </center>
     <right>
         <VBox fx:id="controlPanel" alignment="TOP_CENTER" prefWidth="200.0" spacing="10"
-              style="-fx-padding: 10; -fx-border-color: lightgray; -fx-border-width: 0 0 0 1;">
+              styleClass="control-panel">
             <padding>
                 <Insets top="20" right="10" bottom="10" left="10"/>
             </padding>
-            <Label fx:id="turnLabel" text="White to move" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
-            <Button fx:id="newGameButton" text="New Game" onAction="#handleNewGame" prefWidth="150"/>
+            <Label fx:id="turnLabel" text="White to move" styleClass="turn-label"/>
+            <Button fx:id="newGameButton" text="New Game" onAction="#handleNewGame" prefWidth="150"
+                    styleClass="game-button, new-game-button"/>
             <Button fx:id="undoMoveButton" text="Undo Last Move" onAction="#handleUndoMove" prefWidth="150"
-                    disable="true"/>
-            <Label fx:id="statusLabel" text="" style="-fx-font-size: 14px; -fx-text-fill: red; -fx-font-weight: bold;"/>
+                    styleClass="game-button, undo-button"/>
+            <Label fx:id="statusLabel" text="" styleClass="status-label"/>
 
-            <Label text="Captured by White:"/>
-            <VBox fx:id="capturedByWhiteArea" minHeight="50" style="-fx-border-color: gray; -fx-padding: 5;"/>
-            <Label text="Captured by Black:"/>
-            <VBox fx:id="capturedByBlackArea" minHeight="50" style="-fx-border-color: gray; -fx-padding: 5;"/>
-            <Label text="Move History:" style="-fx-font-weight: bold;"/>
-            <ListView fx:id="moveHistoryListView" prefHeight="200.0"/>
+            <Label text="Captured by White:" styleClass="captured-pieces-title"/>
+            <VBox fx:id="capturedByWhiteArea" minHeight="50" styleClass="captured-pieces-area, white-captures"/>
+            <Label text="Captured by Black:" styleClass="captured-pieces-title"/>
+            <VBox fx:id="capturedByBlackArea" minHeight="50" styleClass="captured-pieces-area, black-captures"/>
+
+            <Label text="Move History:" styleClass="move-history-title"/>
+            <ListView fx:id="moveHistoryListView" prefHeight="200.0" styleClass="move-history-list"/>
 
         </VBox>
     </right>

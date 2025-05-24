@@ -1,0 +1,167 @@
+.root-pane {
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-background-color: #ECEFF1;
+}
+
+.board-grid-pane {
+    -fx-border-color: #4A4A4A;
+    -fx-border-width: 2px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.3), 8, 0.2, 1, 1);
+}
+
+.chess-square-pane {
+}
+
+.light-square-background {
+    -fx-fill: #f0d9b5;
+}
+
+.dark-square-background {
+    -fx-fill: #b58863;
+}
+
+.selected-square-highlight-border {
+    -fx-border-color: #FFEB3B;
+    -fx-border-width: 3.5px;
+    -fx-border-style: solid;
+    -fx-background-color: transparent;
+    /* -fx-effect: dropshadow(gaussian, rgba(255,235,59,0.7), 10, 0.6, 0, 0); */
+}
+
+.move-indicator-dot {
+    -fx-opacity: 0.6;
+    -fx-stroke: rgba(0, 0, 0, 0.2);
+    -fx-stroke-width: 1px;
+}
+
+.move-indicator-dot-normal {
+    -fx-fill: #4CAF50;
+}
+
+.move-indicator-dot-capture {
+    -fx-fill: #F44336;
+}
+
+
+.control-panel {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #CFD8DC;
+    -fx-border-width: 0 0 0 1px;
+    -fx-padding: 15px;
+}
+
+.turn-label {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #37474F;
+    -fx-padding: 10px 0 15px 0;
+}
+
+.status-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #D32F2F;
+    -fx-min-height: 30px;
+    -fx-alignment: center;
+    -fx-padding: 5px 0;
+}
+
+.game-button {
+    -fx-background-color: #546E7A;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-background-radius: 4px;
+    -fx-padding: 8px 15px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 5, 0.1, 1, 1);
+}
+
+.game-button:hover {
+    -fx-background-color: #607D8B;
+}
+
+.game-button:pressed {
+    -fx-background-color: #455A64;
+}
+
+.game-button:disabled {
+    -fx-opacity: 0.5;
+    -fx-effect: none;
+}
+
+.new-game-button {
+}
+
+.undo-button {
+}
+
+
+.captured-pieces-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #546E7A;
+    -fx-padding: 8px 0 4px 0;
+}
+
+.captured-pieces-area {
+    -fx-background-color: #ECEFF1;
+    -fx-border-color: #B0BEC5;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-padding: 5px;
+    -fx-min-height: 60px;
+}
+
+.captured-piece-image {
+    -fx-padding: 1px;
+}
+
+
+.move-history-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #546E7A;
+    -fx-padding: 8px 0 4px 0;
+}
+
+.move-history-list {
+    -fx-border-color: #B0BEC5;
+    -fx-border-width: 1px;
+    -fx-font-size: 13px;
+}
+
+.move-history-list .list-cell {
+    -fx-padding: 4px 8px;
+    -fx-background-color: transparent;
+}
+
+.move-history-list .list-cell:odd {
+    -fx-background-color: #FAFAFA;
+}
+
+.move-history-list .list-cell:even {
+    -fx-background-color: #FFFFFF;
+}
+
+.move-history-list .list-cell:filled:hover {
+    -fx-background-color: #CFD8DC;
+    -fx-text-fill: #263238;
+}
+
+.move-history-list .list-cell:filled:selected {
+    -fx-background-color: #78909C;
+    -fx-text-fill: white;
+}
+
+.move-history-list .scroll-bar:vertical .thumb {
+    -fx-background-color: #78909C;
+    -fx-background-insets: 0;
+    -fx-background-radius: 3;
+}
+
+.move-history-list .scroll-bar:vertical .track {
+    -fx-background-color: #ECEFF1;
+    -fx-border-color: transparent;
+    -fx-background-radius: 3;
+}
