@@ -1,5 +1,6 @@
 package org.group13.chessgame.controller;
 
+import javafx.animation.TranslateTransition;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -15,6 +16,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.shape.Rectangle;
+import javafx.util.Duration;
 import org.group13.chessgame.model.*;
 import org.group13.chessgame.utils.NotationUtils;
 
@@ -192,7 +194,7 @@ public class ChessController {
                     chosenMove = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == clickedBoardSquare && m.isPromotion() && m.getPromotionPieceType() == finalPromotionType).findFirst().orElseThrow(() -> new IllegalStateException("Selected promotion move not found in legal moves."));
                 }
 
-                performMove(chosenMove);
+                performMoveAnimation(chosenMove);
 
             } else if (clickedBoardSquare.hasPiece() && clickedBoardSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
                 clearSelectionAndHighlights();
@@ -242,36 +244,98 @@ public class ChessController {
         }
     }
 
-    private void performMove(Move move) {
-        boolean moveMade = gameModel.makeMove(move);
-        if (moveMade) {
-            if (move.isCastlingMove()) {
-                playSound(castleSoundPlayer);
-            } else if (move.isPromotion()) {
-                playSound(promoteSoundPlayer);
-            } else if (move.getPieceCaptured() != null) {
-                playSound(captureSoundPlayer);
-            } else {
-                playSound(moveSoundPlayer);
-            }
-            addMoveToHistoryView(move);
-            refreshBoardView();
-            updateTurnLabel();
-            updateStatusBasedOnGameState();
-            undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty() || isGameOver());
-            Piece captured = move.getPieceCaptured();
-            if (captured != null) {
-                if (captured.getColor() == PieceColor.BLACK) {
-                    whiteCapturedPieces.add(captured);
-                } else {
-                    blackCapturedPieces.add(captured);
+    private void performMoveAnimation(Move move) {
+        Square startSquareModel = move.getStartSquare();
+        StackPane startPane = squarePanes[startSquareModel.getRow()][startSquareModel.getCol()];
+        ImageView pieceToAnimate = getPieceImageViewFromPane(startPane);
+
+        Square endSquareModel = move.getEndSquare();
+
+        ImageView tempAnimatedPiece = new ImageView(pieceToAnimate.getImage());
+        tempAnimatedPiece.setFitWidth(pieceToAnimate.getFitWidth());
+        tempAnimatedPiece.setFitHeight(pieceToAnimate.getFitHeight());
+        tempAnimatedPiece.setPreserveRatio(true);
+
+        double startCellX = startSquareModel.getCol() * SQUARE_SIZE;
+        double startCellY = startSquareModel.getRow() * SQUARE_SIZE;
+
+        double fromX = startCellX + (SQUARE_SIZE - tempAnimatedPiece.getFitWidth()) / 2;
+        double fromY = startCellY;
+
+        double endCellX = endSquareModel.getCol() * SQUARE_SIZE;
+        double endCellY = endSquareModel.getRow() * SQUARE_SIZE;
+
+        double toX = endCellX + (SQUARE_SIZE - tempAnimatedPiece.getFitWidth()) / 2;
+        double toY = endCellY;
+
+        pieceToAnimate.setVisible(false);
+
+        boardGridPane.getChildren().add(tempAnimatedPiece);
+        tempAnimatedPiece.setLayoutX(0);
+        tempAnimatedPiece.setLayoutY(0);
+        tempAnimatedPiece.setTranslateX(fromX);
+        tempAnimatedPiece.setTranslateY(fromY);
+
+        TranslateTransition tt = new TranslateTransition(Duration.millis(250), tempAnimatedPiece);
+        tt.setFromX(fromX);
+        tt.setFromY(fromY);
+        tt.setToX(toX);
+        tt.setToY(toY);
+
+        boardGridPane.setMouseTransparent(true);
+
+        tt.setOnFinished(event -> {
+            boardGridPane.getChildren().remove(tempAnimatedPiece);
+
+            boolean moveMade = gameModel.makeMove(move);
+            if (moveMade) {
+                addMoveToHistoryView(move);
+                refreshBoardView();
+                updateTurnLabel();
+                updateStatusBasedOnGameState();
+                undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty() || isGameOver());
+                Piece captured = move.getPieceCaptured();
+                if (captured != null) {
+                    if (captured.getColor() == PieceColor.BLACK) {
+                        whiteCapturedPieces.add(captured);
+                    } else {
+                        blackCapturedPieces.add(captured);
+                    }
                 }
+                updateCapturedPiecesView();
+                playMoveSounds(move);
+            } else {
+                updateStatusLabel("Error: Invalid move attempted!");
+                pieceToAnimate.setVisible(true);
             }
-            updateCapturedPiecesView();
+            clearSelectionAndHighlights();
+            boardGridPane.setMouseTransparent(false);
+        });
+
+        tt.play();
+    }
+
+    private void playMoveSounds(Move move) {
+        if (move.isCastlingMove()) {
+            playSound(castleSoundPlayer);
+        } else if (move.isPromotion()) {
+            playSound(promoteSoundPlayer);
+        } else if (move.getPieceCaptured() != null) {
+            playSound(captureSoundPlayer);
         } else {
-            updateStatusLabel("Error: Invalid move attempted!");
+            playSound(moveSoundPlayer);
         }
-        clearSelectionAndHighlights();
+
+        Game.GameState currentState = gameModel.getGameState();
+        if (currentState == Game.GameState.CHECK) {
+            playSound(checkSoundPlayer);
+        } else if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE || isDrawState(currentState)) {
+            playSound(endGameSoundPlayer);
+        }
+    }
+
+    private boolean isDrawState(Game.GameState state) {
+        return state == Game.GameState.STALEMATE_DRAW || state == Game.GameState.FIFTY_MOVE_DRAW || state == Game.GameState.THREEFOLD_REPETITION_DRAW || state == Game.GameState.INSUFFICIENT_MATERIAL_DRAW;
     }
 
     private PieceType askForPromotionType() {
@@ -390,11 +454,6 @@ public class ChessController {
                 break;
         }
         statusLabel.setText(status);
-        if (currentState == Game.GameState.CHECK) {
-            playSound(checkSoundPlayer);
-        } else if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE || currentState == Game.GameState.STALEMATE_DRAW || currentState == Game.GameState.FIFTY_MOVE_DRAW || currentState == Game.GameState.THREEFOLD_REPETITION_DRAW || currentState == Game.GameState.INSUFFICIENT_MATERIAL_DRAW) {
-            playSound(endGameSoundPlayer);
-        }
         if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Game Over");
