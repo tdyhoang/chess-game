@@ -51,7 +51,7 @@ public class PawnTest {
         void initialMoveBlockedOneStep() {
             whitePawn = new Pawn(PieceColor.WHITE);
             board.setPiece(6, 3, whitePawn); // d2
-            board.setPiece(5, 3, new Pawn(PieceColor.BLACK)); // Black pawn at d3
+            board.setPiece(5, 3, new Pawn(PieceColor.BLACK)); // d3
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 6, 3);
             assertEquals(0, moves.size(), "Should have 0 moves if one step forward is blocked.");
@@ -62,7 +62,7 @@ public class PawnTest {
         void initialMoveBlockedTwoSteps() {
             whitePawn = new Pawn(PieceColor.WHITE);
             board.setPiece(6, 3, whitePawn); // d2
-            board.setPiece(4, 3, new Pawn(PieceColor.BLACK)); // Black pawn at d4
+            board.setPiece(4, 3, new Pawn(PieceColor.BLACK)); // d4
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 6, 3);
             assertEquals(1, moves.size(), "Should have 1 move (one step) if two steps forward is blocked.");
@@ -74,7 +74,7 @@ public class PawnTest {
         void nonInitialMoveOneStep() {
             whitePawn = new Pawn(PieceColor.WHITE);
             whitePawn.setHasMoved(true);
-            board.setPiece(5, 3, whitePawn); // d3, already moved
+            board.setPiece(5, 3, whitePawn); // d3
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 5, 3);
             assertEquals(1, moves.size(), "Should have 1 move from non-initial position.");
@@ -87,8 +87,8 @@ public class PawnTest {
             whitePawn = new Pawn(PieceColor.WHITE);
             whitePawn.setHasMoved(true);
             board.setPiece(3, 3, whitePawn); // d5
-            board.setPiece(2, 2, new Pawn(PieceColor.BLACK)); // Black pawn at c6
-            board.setPiece(2, 4, new Pawn(PieceColor.BLACK)); // Black pawn at e6
+            board.setPiece(2, 2, new Pawn(PieceColor.BLACK)); // c6
+            board.setPiece(2, 4, new Pawn(PieceColor.BLACK)); // e6
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 3, 3);
             assertEquals(3, moves.size(), "Should have 3 moves (1 forward, 2 captures).");
@@ -103,7 +103,7 @@ public class PawnTest {
             whitePawn = new Pawn(PieceColor.WHITE);
             whitePawn.setHasMoved(true);
             board.setPiece(3, 3, whitePawn); // d5
-            board.setPiece(2, 2, new Rook(PieceColor.WHITE)); // White Rook at c6
+            board.setPiece(2, 2, new Rook(PieceColor.WHITE)); // Rc6
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 3, 3);
             assertEquals(1, moves.stream().filter(m -> !m.isPromotion()).count());
@@ -132,7 +132,7 @@ public class PawnTest {
         void promotionWithCapture() {
             whitePawn = new Pawn(PieceColor.WHITE);
             board.setPiece(1, 0, whitePawn); // a7
-            board.setPiece(0, 1, new Rook(PieceColor.BLACK)); // Black Rook at b8
+            board.setPiece(0, 1, new Rook(PieceColor.BLACK)); // Rb8
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 1, 0);
 
@@ -171,7 +171,7 @@ public class PawnTest {
         void initialMoveBlockedOneStep() {
             blackPawn = new Pawn(PieceColor.BLACK);
             board.setPiece(1, 3, blackPawn); // d7
-            board.setPiece(2, 3, new Pawn(PieceColor.WHITE)); // White pawn at d6
+            board.setPiece(2, 3, new Pawn(PieceColor.WHITE)); // d6
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 1, 3);
             assertEquals(0, moves.size(), "Should have 0 moves if one step forward is blocked.");
@@ -182,7 +182,7 @@ public class PawnTest {
         void initialMoveBlockedTwoSteps() {
             blackPawn = new Pawn(PieceColor.BLACK);
             board.setPiece(1, 3, blackPawn); // d7
-            board.setPiece(3, 3, new Pawn(PieceColor.WHITE)); // White pawn at d5
+            board.setPiece(3, 3, new Pawn(PieceColor.WHITE)); // d5
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 1, 3);
             assertEquals(1, moves.size(), "Should have 1 move (one step) if two steps forward is blocked.");
@@ -194,7 +194,7 @@ public class PawnTest {
         void nonInitialMoveOneStep() {
             blackPawn = new Pawn(PieceColor.BLACK);
             blackPawn.setHasMoved(true);
-            board.setPiece(2, 3, blackPawn); // d6, already moved
+            board.setPiece(2, 3, blackPawn); // d6
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 2, 3);
             assertEquals(1, moves.size(), "Should have 1 move from non-initial position.");
@@ -207,8 +207,8 @@ public class PawnTest {
             blackPawn = new Pawn(PieceColor.BLACK);
             blackPawn.setHasMoved(true);
             board.setPiece(4, 3, blackPawn); // d5
-            board.setPiece(5, 2, new Pawn(PieceColor.WHITE)); // White pawn at c6
-            board.setPiece(5, 4, new Pawn(PieceColor.WHITE)); // White pawn at e6
+            board.setPiece(5, 2, new Pawn(PieceColor.WHITE)); // c6
+            board.setPiece(5, 4, new Pawn(PieceColor.WHITE)); // e6
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 4, 3);
             assertEquals(3, moves.size(), "Should have 3 moves (1 forward, 2 captures).");
@@ -223,7 +223,7 @@ public class PawnTest {
             blackPawn = new Pawn(PieceColor.BLACK);
             blackPawn.setHasMoved(true);
             board.setPiece(4, 3, blackPawn); // d5
-            board.setPiece(5, 2, new Rook(PieceColor.BLACK)); // Black Rook at c6
+            board.setPiece(5, 2, new Rook(PieceColor.BLACK)); // Rc6
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 4, 3);
             assertEquals(1, moves.stream().filter(m -> !m.isPromotion()).count());
@@ -252,7 +252,7 @@ public class PawnTest {
         void promotionWithCapture() {
             blackPawn = new Pawn(PieceColor.BLACK);
             board.setPiece(6, 0, blackPawn); // a2
-            board.setPiece(7, 1, new Rook(PieceColor.WHITE)); // White Rook at b1
+            board.setPiece(7, 1, new Rook(PieceColor.WHITE)); // Rb1
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 6, 0);
 
@@ -272,11 +272,6 @@ public class PawnTest {
     @Nested
     @DisplayName("En Passant")
     class EnPassantTests {
-        // These tests require setting up game.lastMove which is more involved.
-        // We'll do these in GameTest or integration tests for now,
-        // as Pawn.getPseudoLegalMoves directly uses game.getLastMove().
-        // For a pure PawnTest, we might need to mock the Game object or provide a dummy last move.
-
         @Test
         @DisplayName("White Pawn can perform en passant capture")
         void whitePawnEnPassant() {
@@ -288,7 +283,7 @@ public class PawnTest {
             Square blackPawnEndSquare = board.getSquare(3, 2);
             board.setPiece(blackPawnEndSquare.getRow(), blackPawnEndSquare.getCol(), blackPawnOriginal);
 
-            Move blackLastMove = new Move(new Square(1, 2), blackPawnEndSquare, blackPawnOriginal, false); // c7 to c5
+            Move blackLastMove = new Move(new Square(1, 2), blackPawnEndSquare, blackPawnOriginal, false); // c7-c5
             game.getMoveHistory().add(blackLastMove);
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 3, 3);
@@ -310,7 +305,7 @@ public class PawnTest {
             Square whitePawnEndSquare = board.getSquare(4, 2);
             board.setPiece(whitePawnEndSquare.getRow(), whitePawnEndSquare.getCol(), whitePawnOriginal);
 
-            Move whiteLastMove = new Move(new Square(6, 2), whitePawnEndSquare, whitePawnOriginal, false); // c2 to c4
+            Move whiteLastMove = new Move(new Square(6, 2), whitePawnEndSquare, whitePawnOriginal, false); // c2-c4
             game.getMoveHistory().add(whiteLastMove);
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 4, 3);

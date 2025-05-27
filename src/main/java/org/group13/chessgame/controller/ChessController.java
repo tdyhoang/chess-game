@@ -9,10 +9,10 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.shape.Rectangle;
@@ -21,9 +21,7 @@ import org.group13.chessgame.model.*;
 import org.group13.chessgame.utils.NotationUtils;
 
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class ChessController {
     private static final int BOARD_DISPLAY_SIZE = 600;
@@ -34,17 +32,15 @@ public class ChessController {
     @FXML
     private GridPane boardGridPane;
     @FXML
-    private ImageView boardBackgroundImage;
-    @FXML
     private Label turnLabel;
     @FXML
     private Label statusLabel;
     @FXML
     private Button undoMoveButton;
     @FXML
-    private VBox capturedByWhiteArea;
+    private FlowPane capturedByWhitePane;
     @FXML
-    private VBox capturedByBlackArea;
+    private FlowPane capturedByBlackPane;
     @FXML
     private ListView<String> moveHistoryListView;
     private Game gameModel;
@@ -137,7 +133,7 @@ public class ChessController {
                     try {
                         String imagePath = piece.getImagePath();
                         // getClass().getResourceAsStream()
-                        Image pieceImage = new Image(getClass().getResourceAsStream(imagePath));
+                        Image pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(imagePath)));
                         pieceImageView.setImage(pieceImage);
                         pieceImageView.setVisible(true);
                     } catch (Exception e) {
@@ -257,16 +253,14 @@ public class ChessController {
         tempAnimatedPiece.setPreserveRatio(true);
 
         double startCellX = startSquareModel.getCol() * SQUARE_SIZE;
-        double startCellY = startSquareModel.getRow() * SQUARE_SIZE;
 
         double fromX = startCellX + (SQUARE_SIZE - tempAnimatedPiece.getFitWidth()) / 2;
-        double fromY = startCellY;
+        double fromY = startSquareModel.getRow() * SQUARE_SIZE;
 
         double endCellX = endSquareModel.getCol() * SQUARE_SIZE;
-        double endCellY = endSquareModel.getRow() * SQUARE_SIZE;
 
         double toX = endCellX + (SQUARE_SIZE - tempAnimatedPiece.getFitWidth()) / 2;
-        double toY = endCellY;
+        double toY = endSquareModel.getRow() * SQUARE_SIZE;
 
         pieceToAnimate.setVisible(false);
 
@@ -292,7 +286,6 @@ public class ChessController {
                 addMoveToHistoryView(move);
                 refreshBoardView();
                 updateTurnLabel();
-                updateStatusBasedOnGameState();
                 undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty() || isGameOver());
                 Piece captured = move.getPieceCaptured();
                 if (captured != null) {
@@ -304,6 +297,7 @@ public class ChessController {
                 }
                 updateCapturedPiecesView();
                 playMoveSounds(move);
+                updateStatusBasedOnGameState();
             } else {
                 updateStatusLabel("Error: Invalid move attempted!");
                 pieceToAnimate.setVisible(true);
@@ -424,35 +418,18 @@ public class ChessController {
     }
 
     private void updateStatusBasedOnGameState() {
-        String status = "";
+        String status;
         Game.GameState currentState = gameModel.getGameState();
-        switch (currentState) {
-            case CHECK:
-                status = gameModel.getCurrentPlayer().getColor() + " is in Check!";
-                break;
-            case WHITE_WINS_CHECKMATE:
-                status = "Checkmate! WHITE wins.";
-                break;
-            case BLACK_WINS_CHECKMATE:
-                status = "Checkmate! BLACK wins.";
-                break;
-            case STALEMATE_DRAW:
-                status = "Stalemate! It's a draw.";
-                break;
-            case FIFTY_MOVE_DRAW:
-                status = "Draw by 50-move rule.";
-                break;
-            case THREEFOLD_REPETITION_DRAW:
-                status = "Draw by threefold repetition.";
-                break;
-            case INSUFFICIENT_MATERIAL_DRAW:
-                status = "Draw by insufficient material.";
-                break;
-            case ACTIVE:
-            default:
-                status = "";
-                break;
-        }
+        status = switch (currentState) {
+            case CHECK -> gameModel.getCurrentPlayer().getColor() + " is in Check!";
+            case WHITE_WINS_CHECKMATE -> "Checkmate! WHITE wins.";
+            case BLACK_WINS_CHECKMATE -> "Checkmate! BLACK wins.";
+            case STALEMATE_DRAW -> "Stalemate! It's a draw.";
+            case FIFTY_MOVE_DRAW -> "Draw by 50-move rule.";
+            case THREEFOLD_REPETITION_DRAW -> "Draw by threefold repetition.";
+            case INSUFFICIENT_MATERIAL_DRAW -> "Draw by insufficient material.";
+            default -> "";
+        };
         statusLabel.setText(status);
         if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -481,29 +458,26 @@ public class ChessController {
     }
 
     private void updateCapturedPiecesView() {
-        capturedByWhiteArea.getChildren().clear();
-        capturedByBlackArea.getChildren().clear();
+        capturedByWhitePane.getChildren().clear();
+        capturedByBlackPane.getChildren().clear();
 
-        List<Piece> capturedByWhite = gameModel.getCapturedPieces(PieceColor.WHITE);
-        List<Piece> capturedByBlack = gameModel.getCapturedPieces(PieceColor.BLACK);
+        Comparator<Piece> pieceComparator = Comparator.comparingInt((Piece p) -> getPieceValue(p.getType())).reversed().thenComparing(p -> p.getType().toString());
 
-        List<Piece> sortedWhiteCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.WHITE));
-        // TODO: Implement comparator for sorting pieces by value (Q > R > B > N > P)
-        for (Piece captured : sortedWhiteCaptures) {
-            ImageView imgView = new ImageView(new Image(getClass().getResourceAsStream(captured.getImagePath())));
+        List<Piece> whiteCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.WHITE));
+        populateCapturedPiecesPane(pieceComparator, whiteCaptures, capturedByWhitePane);
+
+        List<Piece> blackCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.BLACK));
+        populateCapturedPiecesPane(pieceComparator, blackCaptures, capturedByBlackPane);
+    }
+
+    private void populateCapturedPiecesPane(Comparator<Piece> comparator, List<Piece> capturedList, FlowPane targetPane) {
+        capturedList.sort(comparator);
+        for (Piece captured : capturedList) {
+            ImageView imgView = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(captured.getImagePath()))));
             imgView.getStyleClass().add("captured-piece-image");
-            imgView.setFitHeight(SQUARE_SIZE * 0.4);
+            imgView.setFitHeight(SQUARE_SIZE * 0.35);
             imgView.setPreserveRatio(true);
-            capturedByWhiteArea.getChildren().add(imgView);
-        }
-
-        List<Piece> sortedBlackCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.BLACK));
-        for (Piece captured : sortedBlackCaptures) {
-            ImageView imgView = new ImageView(new Image(getClass().getResourceAsStream(captured.getImagePath())));
-            imgView.getStyleClass().add("captured-piece-image");
-            imgView.setFitHeight(SQUARE_SIZE * 0.4);
-            imgView.setPreserveRatio(true);
-            capturedByBlackArea.getChildren().add(imgView);
+            targetPane.getChildren().add(imgView);
         }
     }
 
@@ -517,7 +491,7 @@ public class ChessController {
             if (!moveHistoryObservableList.isEmpty()) {
                 int lastIndex = moveHistoryObservableList.size() - 1;
                 String lastEntry = moveHistoryObservableList.get(lastIndex);
-                if (lastEntry.matches("^\\d+\\.\\s[^\\s]+$")) {
+                if (lastEntry.matches("^\\d+\\.\\s\\S+$")) {
                     moveHistoryObservableList.set(lastIndex, lastEntry + "  " + algebraicNotation);
                 } else {
                     moveHistoryObservableList.add(moveNumber + ". ... " + algebraicNotation);
@@ -548,5 +522,16 @@ public class ChessController {
         if (!moveHistoryObservableList.isEmpty()) {
             moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
         }
+    }
+
+    private int getPieceValue(PieceType type) {
+        return switch (type) {
+            case QUEEN -> 9;
+            case ROOK -> 5;
+            case BISHOP -> 4;
+            case KNIGHT -> 3;
+            case PAWN -> 1;
+            default -> 0;
+        };
     }
 }

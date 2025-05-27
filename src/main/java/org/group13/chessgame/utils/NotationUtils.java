@@ -13,7 +13,6 @@ public class NotationUtils {
 
     public static String moveToAlgebraic(Move move, Game game) {
         if (move == null || game == null) return "";
-        Board board = game.getBoard();
 
         // Castle
         if (move.isCastlingMove()) {
@@ -70,21 +69,13 @@ public class NotationUtils {
     }
 
     private static String getPieceChar(PieceType type) {
-        switch (type) {
-            case PAWN:
-                return "";
-            case ROOK:
-                return "R";
-            case KNIGHT:
-                return "N";
-            case BISHOP:
-                return "B";
-            case QUEEN:
-                return "Q";
-            case KING:
-                return "K";
-            default:
-                return "?";
-        }
+        return switch (type) {
+            case PAWN -> "";
+            case ROOK -> "R";
+            case KNIGHT -> "N";
+            case BISHOP -> "B";
+            case QUEEN -> "Q";
+            case KING -> "K";
+        };
     }
 }

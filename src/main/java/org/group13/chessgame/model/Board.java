@@ -83,27 +83,17 @@ public class Board {
 
         start.setPiece(null);
 
-        Piece capturedPiece = move.getPieceCaptured();
-
         if (move.isPromotion()) {
-            Piece promotedPiece = null;
-            switch (move.getPromotionPieceType()) {
-                case QUEEN:
-                    promotedPiece = new Queen(movedPiece.getColor());
-                    break;
-                case ROOK:
-                    promotedPiece = new Rook(movedPiece.getColor());
-                    break;
-                case BISHOP:
-                    promotedPiece = new Bishop(movedPiece.getColor());
-                    break;
-                case KNIGHT:
-                    promotedPiece = new Knight(movedPiece.getColor());
-                    break;
-                default:
+            Piece promotedPiece = switch (move.getPromotionPieceType()) {
+                case QUEEN -> new Queen(movedPiece.getColor());
+                case ROOK -> new Rook(movedPiece.getColor());
+                case BISHOP -> new Bishop(movedPiece.getColor());
+                case KNIGHT -> new Knight(movedPiece.getColor());
+                default -> {
                     System.err.println("Loại quân phong cấp không hợp lệ!");
-                    promotedPiece = new Queen(movedPiece.getColor());
-            }
+                    yield new Queen(movedPiece.getColor());
+                }
+            };
             promotedPiece.setHasMoved(true);
             end.setPiece(promotedPiece);
         } else {

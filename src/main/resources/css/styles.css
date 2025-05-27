@@ -165,3 +165,14 @@
     -fx-border-color: transparent;
     -fx-background-radius: 3;
 }
+
+#capturedByWhitePane, #capturedByBlackPane {
+    -fx-background-color: #F5F5F5;
+    -fx-border-color: #D0D0D0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 5px;
+    -fx-min-height: 60px;
+    -fx-alignment: top_left;
+}

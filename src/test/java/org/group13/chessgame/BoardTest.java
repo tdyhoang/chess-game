@@ -9,11 +9,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class BoardTest {
     private Board board;
-    private Game game;
 
     @BeforeEach
     void setUp() {
-        game = new Game();
+        Game game = new Game();
         board = game.getBoard();
     }
 
@@ -50,7 +49,7 @@ public class BoardTest {
     @Test
     void testBoardCopy() {
         board.initializeBoard();
-        Piece originalPiece = board.getPiece(0, 0); // Black Rook at a8
+        Piece originalPiece = board.getPiece(0, 0);
 
         Board copiedBoard = board.copy();
 
@@ -62,11 +61,11 @@ public class BoardTest {
 
         assertNotSame(originalPiece, copiedBoard.getPiece(0, 0), "Pieces on copied board should be new instances");
 
-        board.setPiece(0, 0, null); // Remove rook from original board
+        board.setPiece(0, 0, null);
         assertNull(board.getPiece(0, 0));
         assertNotNull(copiedBoard.getPiece(0, 0), "Copied board should remain unchanged after original board is modified");
 
-        copiedBoard.setPiece(1, 0, null); // Remove black pawn from copied board
+        copiedBoard.setPiece(1, 0, null);
         assertNull(copiedBoard.getPiece(1, 0));
         assertNotNull(board.getPiece(1, 0), "Original board should remain unchanged after copied board is modified");
     }

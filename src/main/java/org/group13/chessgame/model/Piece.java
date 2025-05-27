@@ -37,27 +37,14 @@ public abstract class Piece {
 
     protected void setImagePath() {
         String colorStr = (color == PieceColor.WHITE) ? "w" : "b";
-        String typeStr = "";
-        switch (type) {
-            case PAWN:
-                typeStr = "P";
-                break;
-            case ROOK:
-                typeStr = "R";
-                break;
-            case KNIGHT:
-                typeStr = "N";
-                break;
-            case BISHOP:
-                typeStr = "B";
-                break;
-            case QUEEN:
-                typeStr = "Q";
-                break;
-            case KING:
-                typeStr = "K";
-                break;
-        }
+        String typeStr = switch (type) {
+            case PAWN -> "P";
+            case ROOK -> "R";
+            case KNIGHT -> "N";
+            case BISHOP -> "B";
+            case QUEEN -> "Q";
+            case KING -> "K";
+        };
         this.imagePath = String.format("/images/piece/%s%s.png", colorStr, typeStr);
     }
 

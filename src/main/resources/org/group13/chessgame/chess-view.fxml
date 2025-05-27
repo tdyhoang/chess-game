@@ -6,7 +6,7 @@
 <BorderPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" prefHeight="700.0" prefWidth="900.0"
             fx:controller="org.group13.chessgame.controller.ChessController" styleClass="root-pane">
     <center>
-        <GridPane fx:id="boardGridPane" alignment="CENTER" hgap="0" vgap="0" styleClass="board-grid-pane">
+        <GridPane fx:id="boardGridPane" alignment="CENTER" styleClass="board-grid-pane">
         </GridPane>
     </center>
     <right>
@@ -20,12 +20,14 @@
                     styleClass="game-button, new-game-button"/>
             <Button fx:id="undoMoveButton" text="Undo Last Move" onAction="#handleUndoMove" prefWidth="150"
                     styleClass="game-button, undo-button"/>
-            <Label fx:id="statusLabel" text="" styleClass="status-label"/>
+            <Label fx:id="statusLabel" styleClass="status-label"/>
 
-            <Label text="Captured by White:" styleClass="captured-pieces-title"/>
-            <VBox fx:id="capturedByWhiteArea" minHeight="50" styleClass="captured-pieces-area, white-captures"/>
-            <Label text="Captured by Black:" styleClass="captured-pieces-title"/>
-            <VBox fx:id="capturedByBlackArea" minHeight="50" styleClass="captured-pieces-area, black-captures"/>
+            <Label text="Captured by White:"/>
+            <FlowPane fx:id="capturedByWhitePane" prefWrapLength="180.0" hgap="2" vgap="2"
+                      style="-fx-border-color: gray; -fx-padding: 5; -fx-min-height: 50;"/>
+            <Label text="Captured by Black:"/>
+            <FlowPane fx:id="capturedByBlackPane" prefWrapLength="180.0" hgap="2" vgap="2"
+                      style="-fx-border-color: gray; -fx-padding: 5; -fx-min-height: 50;"/>
 
             <Label text="Move History:" styleClass="move-history-title"/>
             <ListView fx:id="moveHistoryListView" prefHeight="200.0" styleClass="move-history-list"/>

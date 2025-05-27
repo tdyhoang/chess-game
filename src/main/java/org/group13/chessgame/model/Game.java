@@ -18,7 +18,6 @@ public class Game {
     private long currentPositionHash;
     // 50-move rule
     private int halfMoveClock;
-    private GameState previousGameState;
     private Player currentPlayer;
     private GameState gameState;
     private Square whiteKingSquare;
@@ -65,7 +64,7 @@ public class Game {
         if (moveHistory.isEmpty()) {
             return null;
         }
-        return moveHistory.get(moveHistory.size() - 1);
+        return moveHistory.getLast();
     }
 
     public List<Move> getMoveHistory() {
@@ -100,14 +99,6 @@ public class Game {
         } else {
             this.currentPlayer = blackPlayer;
         }
-    }
-
-    public Player getWhitePlayerInstance() {
-        return whitePlayer;
-    }
-
-    public Player getBlackPlayerInstance() {
-        return blackPlayer;
     }
 
     private void updateKingSquares() {
@@ -173,10 +164,7 @@ public class Game {
             newHash ^= zobristTable.getEnPassantFileKey(oldEnPassantTarget.getCol());
         }
 
-        if (canCastleKingside(PieceColor.WHITE)) newHash ^= zobristTable.getCastlingRightsKey(0);
-        if (canCastleQueenside(PieceColor.WHITE)) newHash ^= zobristTable.getCastlingRightsKey(1);
-        if (canCastleKingside(PieceColor.BLACK)) newHash ^= zobristTable.getCastlingRightsKey(2);
-        if (canCastleQueenside(PieceColor.BLACK)) newHash ^= zobristTable.getCastlingRightsKey(3);
+        newHash ^= getCastlingHash();
 
         Piece pieceMoved = actualMoveToMake.getPieceMoved();
         newHash ^= zobristTable.getPieceKey(pieceMoved.getType(), pieceMoved.getColor(), actualMoveToMake.getStartSquare().getRow(), actualMoveToMake.getStartSquare().getCol());
@@ -220,12 +208,10 @@ public class Game {
             newHash ^= zobristTable.getPieceKey(rookForCastling.getType(), rookForCastling.getColor(), rookNewSquare.getRow(), rookNewSquare.getCol());
         }
 
-        if (canCastleKingside(PieceColor.WHITE)) newHash ^= zobristTable.getCastlingRightsKey(0);
-        if (canCastleQueenside(PieceColor.WHITE)) newHash ^= zobristTable.getCastlingRightsKey(1);
-        if (canCastleKingside(PieceColor.BLACK)) newHash ^= zobristTable.getCastlingRightsKey(2);
-        if (canCastleQueenside(PieceColor.BLACK)) newHash ^= zobristTable.getCastlingRightsKey(3);
+        newHash ^= getCastlingHash();
 
         Square newEnPassantTarget = null;
+        assert pieceOnEndSquare != null;
         if (pieceOnEndSquare.getType() == PieceType.PAWN && Math.abs(actualMoveToMake.getStartSquare().getRow() - actualMoveToMake.getEndSquare().getRow()) == 2) {
             int direction = (pieceOnEndSquare.getColor() == PieceColor.WHITE) ? -1 : 1;
             newEnPassantTarget = board.getSquare(actualMoveToMake.getEndSquare().getRow() - direction, actualMoveToMake.getEndSquare().getCol());
@@ -263,6 +249,15 @@ public class Game {
         updateGameState();
 
         return true;
+    }
+
+    private long getCastlingHash() {
+        long castlingHash = 0;
+        if (canCastleKingside(PieceColor.WHITE)) castlingHash ^= zobristTable.getCastlingRightsKey(0);
+        if (canCastleQueenside(PieceColor.WHITE)) castlingHash ^= zobristTable.getCastlingRightsKey(1);
+        if (canCastleKingside(PieceColor.BLACK)) castlingHash ^= zobristTable.getCastlingRightsKey(2);
+        if (canCastleQueenside(PieceColor.BLACK)) castlingHash ^= zobristTable.getCastlingRightsKey(3);
+        return castlingHash;
     }
 
     public void switchPlayer() {
@@ -453,8 +448,6 @@ public class Game {
     private boolean isInsufficientMaterial() {
         List<Piece> whitePieces = new ArrayList<>();
         List<Piece> blackPieces = new ArrayList<>();
-        int knightCount = 0;
-        int bishopCount = 0;
         PieceColor bishopColorSquare = null;
 
         for (int r = 0; r < Board.SIZE; r++) {
@@ -464,13 +457,11 @@ public class Game {
                     if (p.getColor() == PieceColor.WHITE) whitePieces.add(p);
                     else blackPieces.add(p);
 
-                    if (p.getType() == PieceType.KNIGHT) knightCount++;
                     if (p.getType() == PieceType.BISHOP) {
-                        bishopCount++;
+                        PieceColor currentBishopColorSquare = ((r + c) % 2 == 0) ? PieceColor.WHITE : PieceColor.BLACK;
                         if (bishopColorSquare == null) {
-                            bishopColorSquare = ((r + c) % 2 == 0) ? PieceColor.WHITE : PieceColor.BLACK;
+                            bishopColorSquare = currentBishopColorSquare;
                         } else {
-                            PieceColor currentBishopColorSquare = ((r + c) % 2 == 0) ? PieceColor.WHITE : PieceColor.BLACK;
                             if (bishopColorSquare == currentBishopColorSquare && (p.getType() == PieceType.BISHOP && countPiecesOnBoard(PieceType.BISHOP) == 2)) {
                             } else if (bishopColorSquare != currentBishopColorSquare) {
                                 bishopColorSquare = null;
@@ -522,14 +513,6 @@ public class Game {
         return this.positionHistoryCount.getOrDefault(this.currentPositionHash, 0) >= 3;
     }
 
-    private int countPieceType(List<Piece> pieces, PieceType type) {
-        int count = 0;
-        for (Piece p : pieces) {
-            if (p.getType() == type) count++;
-        }
-        return count;
-    }
-
     private int countPiecesOnBoard(PieceType type) {
         int count = 0;
         for (int r = 0; r < Board.SIZE; r++) {
@@ -559,7 +542,7 @@ public class Game {
         if (moveHistory.isEmpty()) {
             return false;
         }
-        Move lastMove = moveHistory.remove(moveHistory.size() - 1);
+        Move lastMove = moveHistory.removeLast();
 
         Piece piecePutBackOnBoard = lastMove.getPieceCaptured();
         if (piecePutBackOnBoard != null) {
@@ -617,10 +600,7 @@ public class Game {
             hash ^= zobristTable.getBlackToMoveKey();
         }
 
-        if (canCastleKingside(PieceColor.WHITE)) hash ^= zobristTable.getCastlingRightsKey(0);
-        if (canCastleQueenside(PieceColor.WHITE)) hash ^= zobristTable.getCastlingRightsKey(1);
-        if (canCastleKingside(PieceColor.BLACK)) hash ^= zobristTable.getCastlingRightsKey(2);
-        if (canCastleQueenside(PieceColor.BLACK)) hash ^= zobristTable.getCastlingRightsKey(3);
+        hash ^= getCastlingHash();
 
         Square epTarget = getEnPassantTargetSquare();
         if (epTarget != null) {

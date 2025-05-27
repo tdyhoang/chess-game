@@ -32,10 +32,10 @@ public class RookTest {
         List<Move> moves = whiteRook.getPseudoLegalMoves(game, 4, 3);
 
         assertEquals(14, moves.size(), "Rook on empty board from d4 should have 14 moves.");
-        assertTrue(containsMove(moves, 4, 3, 0, 3), "Should move to d8"); // (0,3)
-        assertTrue(containsMove(moves, 4, 3, 7, 3), "Should move to d1"); // (7,3)
-        assertTrue(containsMove(moves, 4, 3, 4, 0), "Should move to a4"); // (4,0)
-        assertTrue(containsMove(moves, 4, 3, 4, 7), "Should move to h4"); // (4,7)
+        assertTrue(containsMove(moves, 4, 3, 0, 3), "Should move to d8");
+        assertTrue(containsMove(moves, 4, 3, 7, 3), "Should move to d1");
+        assertTrue(containsMove(moves, 4, 3, 4, 0), "Should move to a4");
+        assertTrue(containsMove(moves, 4, 3, 4, 7), "Should move to h4");
     }
 
     @Test
@@ -74,7 +74,7 @@ public class RookTest {
         board.setPiece(7, 0, whiteRook); // a1
         List<Move> moves = whiteRook.getPseudoLegalMoves(game, 7, 0);
         assertEquals(14, moves.size());
-        assertTrue(containsMove(moves, 7, 0, 7, 7)); // a1 -> h1
-        assertTrue(containsMove(moves, 7, 0, 0, 0)); // a1 -> a8
+        assertTrue(containsMove(moves, 7, 0, 7, 7)); // h1
+        assertTrue(containsMove(moves, 7, 0, 0, 0)); // a8
     }
 }
