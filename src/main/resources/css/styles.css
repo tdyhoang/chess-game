@@ -20,12 +20,8 @@
     -fx-fill: #b58863;
 }
 
-.selected-square-highlight-border {
-    -fx-border-color: #FFEB3B;
-    -fx-border-width: 3.5px;
-    -fx-border-style: solid;
-    -fx-background-color: transparent;
-    /* -fx-effect: dropshadow(gaussian, rgba(255,235,59,0.7), 10, 0.6, 0, 0); */
+.selected-square-overlay {
+    -fx-fill: rgba(20, 85, 30, 0.5);
 }
 
 .move-indicator-dot {
@@ -35,11 +31,11 @@
 }
 
 .move-indicator-dot-normal {
-    -fx-fill: #4CAF50;
+    -fx-fill: rgba(20, 85, 30, 0.6);
 }
 
 .move-indicator-dot-capture {
-    -fx-fill: #F44336;
+    -fx-fill: rgba(231, 76, 60, 0.6);
 }
 
 
@@ -175,4 +171,12 @@
     -fx-padding: 5px;
     -fx-min-height: 60px;
     -fx-alignment: top_left;
+}
+
+.hovered-square-overlay {
+    -fx-fill: rgba(20, 85, 30, 0.3);
+}
+
+.drag-over-square-overlay {
+    -fx-fill: rgba(20, 85, 30, 0.3);
 }

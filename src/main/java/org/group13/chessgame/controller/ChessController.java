@@ -9,12 +9,20 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import org.group13.chessgame.model.*;
@@ -27,6 +35,12 @@ import java.util.*;
 public class ChessController {
     private static final int BOARD_DISPLAY_SIZE = 600;
     private static final int SQUARE_SIZE = 75;
+    private static final int BACKGROUND_RECT_INDEX = 0;
+    private static final int HOVER_OVERLAY_INDEX = 1;
+    private static final int SELECTED_OVERLAY_INDEX = 2;
+    private static final int DRAG_OVERLAY_INDEX = 3;
+    private static final int PIECE_IMAGE_VIEW_INDEX = 4;
+    private static final int MOVE_INDICATOR_INDEX = 5;
     private final List<Piece> whiteCapturedPieces = new ArrayList<>();
     private final List<Piece> blackCapturedPieces = new ArrayList<>();
     private final ObservableList<String> moveHistoryObservableList = FXCollections.observableArrayList();
@@ -80,12 +94,23 @@ public class ChessController {
                 squarePane.getChildren().add(backgroundRect);
                 squarePane.getStyleClass().add("chess-square-pane");
 
-                Region selectionHighlightRegion = new Region();
-                selectionHighlightRegion.setPrefSize(SQUARE_SIZE, SQUARE_SIZE);
-                selectionHighlightRegion.getStyleClass().add("selected-square-highlight-border");
-                selectionHighlightRegion.setVisible(false);
-                selectionHighlightRegion.setMouseTransparent(true);
-                squarePane.getChildren().add(selectionHighlightRegion);
+                Rectangle hoverOverlay = new Rectangle(SQUARE_SIZE, SQUARE_SIZE);
+                hoverOverlay.setMouseTransparent(true);
+                hoverOverlay.getStyleClass().add("hovered-square-overlay");
+                hoverOverlay.setVisible(false);
+                squarePane.getChildren().add(hoverOverlay);
+
+                Rectangle selectedOverlay = new Rectangle(SQUARE_SIZE, SQUARE_SIZE);
+                selectedOverlay.setMouseTransparent(true);
+                selectedOverlay.getStyleClass().add("selected-square-overlay");
+                selectedOverlay.setVisible(false);
+                squarePane.getChildren().add(selectedOverlay);
+
+                Rectangle dragOverlay = new Rectangle(SQUARE_SIZE, SQUARE_SIZE);
+                dragOverlay.setMouseTransparent(true);
+                dragOverlay.getStyleClass().add("drag-over-square-overlay");
+                dragOverlay.setVisible(false);
+                squarePane.getChildren().add(dragOverlay);
 
                 ImageView pieceImageView = new ImageView();
                 pieceImageView.setFitWidth(SQUARE_SIZE * 0.8);
@@ -102,11 +127,146 @@ public class ChessController {
                 squarePanes[row][col] = squarePane;
                 boardGridPane.add(squarePane, col, row);
 
+                squarePane.setOnMouseEntered(event -> {
+                    if (isGameOver()) return;
+
+                    Square currentHoveredModelSquare = getModelSquare(squarePane);
+
+                    boolean showHover = false;
+                    if (selectedSquare != null) {
+                        boolean isAvailableMoveTarget = availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == currentHoveredModelSquare);
+                        if (isAvailableMoveTarget) {
+                            showHover = true;
+                        }
+                    }
+                    if (currentHoveredModelSquare.hasPiece() && currentHoveredModelSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
+                        showHover = true;
+                    }
+
+                    boolean isSelectedOnThisSquare = (squarePane.getChildren().size() > SELECTED_OVERLAY_INDEX && squarePane.getChildren().get(SELECTED_OVERLAY_INDEX).isVisible());
+                    boolean isDragOverOnThisSquare = (squarePane.getChildren().size() > DRAG_OVERLAY_INDEX && squarePane.getChildren().get(DRAG_OVERLAY_INDEX).isVisible());
+
+                    if (showHover && !isSelectedOnThisSquare && !isDragOverOnThisSquare) {
+                        setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, true);
+                    }
+                });
+                squarePane.setOnMouseExited(event -> setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, false));
+
+                pieceImageView.setOnDragDetected(event -> {
+                    if (isGameOver()) return;
+
+                    StackPane sourcePane = (StackPane) pieceImageView.getParent();
+                    setOverlayVisible(sourcePane, HOVER_OVERLAY_INDEX, false);
+
+                    Square dragSourceSquareModel = getModelSquare(sourcePane);
+
+                    if (dragSourceSquareModel.hasPiece() && dragSourceSquareModel.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
+
+                        if (selectedSquare != null && selectedSquare != dragSourceSquareModel) {
+                            clearSelectionAndHighlights();
+                        }
+
+                        selectPiece(dragSourceSquareModel);
+
+                        Dragboard db = pieceImageView.startDragAndDrop(TransferMode.MOVE);
+                        ClipboardContent content = new ClipboardContent();
+                        content.putString(dragSourceSquareModel.getRow() + "," + dragSourceSquareModel.getCol());
+                        db.setContent(content);
+
+                        SnapshotParameters params = new SnapshotParameters();
+                        params.setFill(Color.TRANSPARENT);
+
+                        Image currentPieceImage = pieceImageView.getImage();
+                        if (currentPieceImage != null) {
+                            Image dragViewImage = pieceImageView.snapshot(params, null);
+                            db.setDragView(dragViewImage);
+                            db.setDragViewOffsetX(dragViewImage.getWidth() / 2);
+                            db.setDragViewOffsetY(dragViewImage.getHeight() / 2);
+                        }
+
+                        event.consume();
+                    }
+                });
+
+                squarePane.setOnDragOver(event -> {
+                    if (event.getGestureSource() != squarePane && event.getDragboard().hasString()) {
+                        boolean canDrop = availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == getModelSquare(squarePane));
+
+                        if (canDrop) {
+                            event.acceptTransferModes(TransferMode.MOVE);
+                        }
+                    }
+                    event.consume();
+                });
+
+                squarePane.setOnDragEntered(event -> {
+                    if (event.getGestureSource() != squarePane && event.getDragboard().hasString()) {
+                        if (availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == getModelSquare(squarePane))) {
+                            setOverlayVisible(squarePane, DRAG_OVERLAY_INDEX, true);
+                            setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, false);
+                        }
+                    }
+                    event.consume();
+                });
+
+                squarePane.setOnDragExited(event -> {
+                    setOverlayVisible(squarePane, DRAG_OVERLAY_INDEX, false);
+                    event.consume();
+                });
+
+                squarePane.setOnDragDropped(event -> {
+                    Dragboard db = event.getDragboard();
+                    boolean success = false;
+                    if (db.hasString()) {
+                        String[] sourceCoords = db.getString().split(",");
+                        int sourceModelRow = Integer.parseInt(sourceCoords[0]);
+                        int sourceModelCol = Integer.parseInt(sourceCoords[1]);
+
+                        Square sourceDragModelSquare = gameModel.getBoard().getSquare(sourceModelRow, sourceModelCol);
+
+                        if (selectedSquare == sourceDragModelSquare) {
+                            Optional<Move> chosenMoveOpt = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == getModelSquare(squarePane)).findFirst();
+
+                            if (chosenMoveOpt.isPresent()) {
+                                Move moveToDo = chosenMoveOpt.get();
+                                if (moveToDo.getPieceMoved().getType() == PieceType.PAWN && (moveToDo.getEndSquare().getRow() == 0 || moveToDo.getEndSquare().getRow() == (Board.SIZE - 1))) {
+
+                                    PieceType promotionChoice = askForPromotionType();
+                                    if (promotionChoice == null) {
+                                        clearSelectionAndHighlights();
+                                        event.setDropCompleted(false);
+                                        event.consume();
+                                        return;
+                                    }
+                                    final PieceType finalChoice = promotionChoice;
+                                    moveToDo = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == getModelSquare(squarePane) && m.isPromotion() && m.getPromotionPieceType() == finalChoice).findFirst().orElseThrow(() -> new IllegalStateException("Selected promotion move (DnD) not found."));
+                                }
+
+                                performMoveLogic(moveToDo);
+                                success = true;
+                            }
+                        }
+                    }
+                    event.setDropCompleted(success);
+                    event.consume();
+                    if (!success) {
+                        clearSelectionAndHighlights();
+                    }
+                });
+
                 final int r = row;
                 final int c = col;
                 squarePane.setOnMouseClicked(event -> handleSquareClick(r, c));
             }
         }
+    }
+
+    private Square getModelSquare(StackPane squarePane) {
+        int targetViewRow = GridPane.getRowIndex(squarePane);
+        int targetViewCol = GridPane.getColumnIndex(squarePane);
+        int targetModelRow = boardIsFlipped ? (Board.SIZE - 1 - targetViewRow) : targetViewRow;
+        int targetModelCol = boardIsFlipped ? (Board.SIZE - 1 - targetViewCol) : targetViewCol;
+        return gameModel.getBoard().getSquare(targetModelRow, targetModelCol);
     }
 
     private void startNewGame() {
@@ -209,6 +369,7 @@ public class ChessController {
     }
 
     private void selectPiece(Square squareToSelect) {
+        clearSelectionAndHighlights();
         selectedSquare = squareToSelect;
         List<Move> filteredMoves = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
         availableMovesForSelectedPiece = new ArrayList<>(filteredMoves);
@@ -389,16 +550,19 @@ public class ChessController {
         return result.orElse(null);
     }
 
+    private void setOverlayVisible(StackPane pane, int overlayIndex, boolean visible) {
+        if (pane != null && pane.getChildren().size() > overlayIndex) {
+            Node overlayNode = pane.getChildren().get(overlayIndex);
+            if (overlayNode != null) {
+                overlayNode.setVisible(visible);
+            }
+        }
+    }
+
     private void clearSelectionAndHighlights() {
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {
-                StackPane pane = squarePanes[r][c];
-                if (pane.getChildren().size() > 1 && pane.getChildren().get(1) instanceof Region) {
-                    pane.getChildren().get(1).setVisible(false);
-                }
-                if (pane.getChildren().size() > 3 && pane.getChildren().get(3) instanceof javafx.scene.shape.Circle) {
-                    pane.getChildren().get(3).setVisible(false);
-                }
+                removeHighlightStyling(squarePanes[r][c]);
             }
         }
         selectedSquare = null;
@@ -406,9 +570,8 @@ public class ChessController {
     }
 
     private void highlightSelectedSquare(StackPane pane) {
-        if (pane.getChildren().size() > 1 && pane.getChildren().get(1) instanceof Region borderRegion) {
-            borderRegion.setVisible(true);
-        }
+        setOverlayVisible(pane, HOVER_OVERLAY_INDEX, false);
+        setOverlayVisible(pane, SELECTED_OVERLAY_INDEX, true);
     }
 
     private void highlightAvailableMoves() {
@@ -418,7 +581,7 @@ public class ChessController {
             int endViewCol = boardIsFlipped ? (Board.SIZE - 1 - endModelSquare.getCol()) : endModelSquare.getCol();
 
             StackPane targetPane = squarePanes[endViewRow][endViewCol];
-            if (targetPane.getChildren().size() > 3 && targetPane.getChildren().get(3) instanceof javafx.scene.shape.Circle indicator) {
+            if (targetPane.getChildren().size() > MOVE_INDICATOR_INDEX && targetPane.getChildren().get(MOVE_INDICATOR_INDEX) instanceof javafx.scene.shape.Circle indicator) {
                 indicator.getStyleClass().clear();
                 indicator.getStyleClass().add("move-indicator-dot");
                 if (move.getPieceCaptured() != null || move.isEnPassantMove()) {
@@ -432,12 +595,10 @@ public class ChessController {
     }
 
     private void removeHighlightStyling(StackPane pane) {
-        pane.getStyleClass().remove("selected-square-highlight-border");
-        if (pane.getChildren().size() > 2 && pane.getChildren().get(2) instanceof javafx.scene.shape.Circle indicator) {
-            indicator.setVisible(false);
-            indicator.getStyleClass().remove("move-indicator-dot-capture");
-            indicator.getStyleClass().remove("move-indicator-dot-normal");
-        }
+        setOverlayVisible(pane, HOVER_OVERLAY_INDEX, false);
+        setOverlayVisible(pane, SELECTED_OVERLAY_INDEX, false);
+        setOverlayVisible(pane, DRAG_OVERLAY_INDEX, false);
+        setOverlayVisible(pane, MOVE_INDICATOR_INDEX, false);
     }
 
     private boolean isGameOver() {
@@ -576,9 +737,7 @@ public class ChessController {
     @FXML
     private void handleFlipBoard() {
         boardIsFlipped = !boardIsFlipped;
+        clearSelectionAndHighlights();
         refreshBoardView();
-        if (selectedSquare != null) {
-            clearSelectionAndHighlights();
-        }
     }
 }

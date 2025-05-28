@@ -45,4 +45,4 @@
 #### Gợi ý hướng làm
 
 - Màu quân cờ được lưu trong `Player` (`PieceColor`).
-- Đã thêm tính năng lật bàn cờ trong `ChessController`, dùng field boardIsFlipped.
+- Đã thêm tính năng lật bàn cờ trong `ChessController`, dùng field `boardIsFlipped`.
