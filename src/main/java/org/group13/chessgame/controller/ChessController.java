@@ -1,24 +1,25 @@
 package org.group13.chessgame.controller;
 
+import javafx.animation.Interpolator;
 import javafx.animation.TranslateTransition;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import org.group13.chessgame.model.*;
 import org.group13.chessgame.utils.NotationUtils;
+import org.group13.chessgame.utils.PieceImageProvider;
 
 import java.net.URL;
 import java.util.*;
@@ -48,6 +49,7 @@ public class ChessController {
     private Square selectedSquare = null;
     private List<Move> availableMovesForSelectedPiece = new ArrayList<>();
     private MediaPlayer moveSoundPlayer, captureSoundPlayer, checkSoundPlayer, endGameSoundPlayer, castleSoundPlayer, promoteSoundPlayer;
+    private boolean boardIsFlipped = false;
 
     @FXML
     public void initialize() {
@@ -109,8 +111,7 @@ public class ChessController {
 
     private void startNewGame() {
         gameModel.initializeGame();
-        selectedSquare = null;
-        availableMovesForSelectedPiece.clear();
+        clearSelectionAndHighlights();
         moveHistoryObservableList.clear();
         refreshBoardView();
         updateTurnLabel();
@@ -125,14 +126,16 @@ public class ChessController {
         Board currentBoard = gameModel.getBoard();
         for (int row = 0; row < Board.SIZE; row++) {
             for (int col = 0; col < Board.SIZE; col++) {
-                StackPane squarePane = squarePanes[row][col];
+                int viewRow = boardIsFlipped ? (Board.SIZE - 1 - row) : row;
+                int viewCol = boardIsFlipped ? (Board.SIZE - 1 - col) : col;
+
+                StackPane squarePane = squarePanes[viewRow][viewCol];
                 ImageView pieceImageView = getPieceImageViewFromPane(squarePane);
 
                 Piece piece = currentBoard.getPiece(row, col);
                 if (piece != null) {
                     try {
                         String imagePath = piece.getImagePath();
-                        // getClass().getResourceAsStream()
                         Image pieceImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream(imagePath)));
                         pieceImageView.setImage(pieceImage);
                         pieceImageView.setVisible(true);
@@ -162,12 +165,15 @@ public class ChessController {
         return newImageView;
     }
 
-    private void handleSquareClick(int row, int col) {
+    private void handleSquareClick(int viewRow, int viewCol) {
         if (isGameOver()) {
             return;
         }
 
-        Square clickedBoardSquare = gameModel.getBoard().getSquare(row, col);
+        int modelRow = boardIsFlipped ? (Board.SIZE - 1 - viewRow) : viewRow;
+        int modelCol = boardIsFlipped ? (Board.SIZE - 1 - viewCol) : viewCol;
+
+        Square clickedBoardSquare = gameModel.getBoard().getSquare(modelRow, modelCol);
 
         if (selectedSquare == null) {
             if (clickedBoardSquare.hasPiece() && clickedBoardSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
@@ -190,6 +196,7 @@ public class ChessController {
                     chosenMove = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == clickedBoardSquare && m.isPromotion() && m.getPromotionPieceType() == finalPromotionType).findFirst().orElseThrow(() -> new IllegalStateException("Selected promotion move not found in legal moves."));
                 }
 
+                clearSelectionAndHighlights();
                 performMoveAnimation(chosenMove);
 
             } else if (clickedBoardSquare.hasPiece() && clickedBoardSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
@@ -205,7 +212,9 @@ public class ChessController {
         selectedSquare = squareToSelect;
         List<Move> filteredMoves = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
         availableMovesForSelectedPiece = new ArrayList<>(filteredMoves);
-        highlightSelectedSquare(squarePanes[squareToSelect.getRow()][squareToSelect.getCol()]);
+        int viewRow = boardIsFlipped ? (Board.SIZE - 1 - squareToSelect.getRow()) : squareToSelect.getRow();
+        int viewCol = boardIsFlipped ? (Board.SIZE - 1 - squareToSelect.getCol()) : squareToSelect.getCol();
+        highlightSelectedSquare(squarePanes[viewRow][viewCol]);
         highlightAvailableMoves();
     }
 
@@ -242,25 +251,30 @@ public class ChessController {
 
     private void performMoveAnimation(Move move) {
         Square startSquareModel = move.getStartSquare();
-        StackPane startPane = squarePanes[startSquareModel.getRow()][startSquareModel.getCol()];
-        ImageView pieceToAnimate = getPieceImageViewFromPane(startPane);
-
         Square endSquareModel = move.getEndSquare();
+
+        int startViewRow = boardIsFlipped ? (Board.SIZE - 1 - startSquareModel.getRow()) : startSquareModel.getRow();
+        int startViewCol = boardIsFlipped ? (Board.SIZE - 1 - startSquareModel.getCol()) : startSquareModel.getCol();
+        int endViewRow = boardIsFlipped ? (Board.SIZE - 1 - endSquareModel.getRow()) : endSquareModel.getRow();
+        int endViewCol = boardIsFlipped ? (Board.SIZE - 1 - endSquareModel.getCol()) : endSquareModel.getCol();
+
+        StackPane startPane = squarePanes[startViewRow][startViewCol];
+        ImageView pieceToAnimate = getPieceImageViewFromPane(startPane);
 
         ImageView tempAnimatedPiece = new ImageView(pieceToAnimate.getImage());
         tempAnimatedPiece.setFitWidth(pieceToAnimate.getFitWidth());
         tempAnimatedPiece.setFitHeight(pieceToAnimate.getFitHeight());
         tempAnimatedPiece.setPreserveRatio(true);
 
-        double startCellX = startSquareModel.getCol() * SQUARE_SIZE;
+        double startCellX = startViewCol * SQUARE_SIZE;
 
         double fromX = startCellX + (SQUARE_SIZE - tempAnimatedPiece.getFitWidth()) / 2;
-        double fromY = startSquareModel.getRow() * SQUARE_SIZE;
+        double fromY = startViewRow * SQUARE_SIZE;
 
-        double endCellX = endSquareModel.getCol() * SQUARE_SIZE;
+        double endCellX = endViewCol * SQUARE_SIZE;
 
         double toX = endCellX + (SQUARE_SIZE - tempAnimatedPiece.getFitWidth()) / 2;
-        double toY = endSquareModel.getRow() * SQUARE_SIZE;
+        double toY = endViewRow * SQUARE_SIZE;
 
         pieceToAnimate.setVisible(false);
 
@@ -271,6 +285,7 @@ public class ChessController {
         tempAnimatedPiece.setTranslateY(fromY);
 
         TranslateTransition tt = new TranslateTransition(Duration.millis(250), tempAnimatedPiece);
+        tt.setInterpolator(Interpolator.EASE_BOTH);
         tt.setFromX(fromX);
         tt.setFromY(fromY);
         tt.setToX(toX);
@@ -280,33 +295,36 @@ public class ChessController {
 
         tt.setOnFinished(event -> {
             boardGridPane.getChildren().remove(tempAnimatedPiece);
-
-            boolean moveMade = gameModel.makeMove(move);
-            if (moveMade) {
-                addMoveToHistoryView(move);
-                refreshBoardView();
-                updateTurnLabel();
-                undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty() || isGameOver());
-                Piece captured = move.getPieceCaptured();
-                if (captured != null) {
-                    if (captured.getColor() == PieceColor.BLACK) {
-                        whiteCapturedPieces.add(captured);
-                    } else {
-                        blackCapturedPieces.add(captured);
-                    }
-                }
-                updateCapturedPiecesView();
-                playMoveSounds(move);
-                updateStatusBasedOnGameState();
-            } else {
-                updateStatusLabel("Error: Invalid move attempted!");
-                pieceToAnimate.setVisible(true);
-            }
-            clearSelectionAndHighlights();
+            performMoveLogic(move);
             boardGridPane.setMouseTransparent(false);
         });
 
         tt.play();
+    }
+
+    private void performMoveLogic(Move move) {
+        boolean moveMade = gameModel.makeMove(move);
+        if (moveMade) {
+            addMoveToHistoryView(move);
+            refreshBoardView();
+            updateTurnLabel();
+            undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty() || isGameOver());
+            Piece captured = move.getPieceCaptured();
+            if (captured != null) {
+                if (captured.getColor() == PieceColor.BLACK) {
+                    whiteCapturedPieces.add(captured);
+                } else {
+                    blackCapturedPieces.add(captured);
+                }
+            }
+            updateCapturedPiecesView();
+            playMoveSounds(move);
+            updateStatusBasedOnGameState();
+        } else {
+            updateStatusLabel("Error: Invalid move attempted!");
+            refreshBoardView();
+        }
+        clearSelectionAndHighlights();
     }
 
     private void playMoveSounds(Move move) {
@@ -333,28 +351,42 @@ public class ChessController {
     }
 
     private PieceType askForPromotionType() {
-        // TODO: Implement a proper JavaFX dialog for promotion choice
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Pawn Promotion");
-        alert.setHeaderText("Choose a piece to promote to:");
-        alert.setContentText("Choose your option.");
+        Dialog<PieceType> dialog = new Dialog<>();
+        dialog.setTitle("Pawn Promotion");
+        dialog.setHeaderText("Choose a piece to promote your pawn to:");
 
-        ButtonType buttonTypeQueen = new ButtonType("Queen");
-        ButtonType buttonTypeRook = new ButtonType("Rook");
-        ButtonType buttonTypeBishop = new ButtonType("Bishop");
-        ButtonType buttonTypeKnight = new ButtonType("Knight");
-        ButtonType buttonTypeCancel = new ButtonType("Cancel", ButtonType.CANCEL.getButtonData());
+        ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().add(cancelButtonType);
 
-        alert.getButtonTypes().setAll(buttonTypeQueen, buttonTypeRook, buttonTypeBishop, buttonTypeKnight, buttonTypeCancel);
+        HBox buttonBox = new HBox(10);
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setPadding(new Insets(20));
 
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent()) {
-            if (result.get() == buttonTypeQueen) return PieceType.QUEEN;
-            if (result.get() == buttonTypeRook) return PieceType.ROOK;
-            if (result.get() == buttonTypeBishop) return PieceType.BISHOP;
-            if (result.get() == buttonTypeKnight) return PieceType.KNIGHT;
+        PieceColor promotionColor = gameModel.getCurrentPlayer().getColor();
+        PieceType[] promotionOptions = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
+
+        for (PieceType type : promotionOptions) {
+            ImageView pieceView = PieceImageProvider.getImageViewFor(type, promotionColor, 50);
+            Button choiceButton = new Button("", pieceView);
+            choiceButton.setPrefSize(70, 70);
+            choiceButton.setOnAction(event -> {
+                dialog.setResult(type);
+                dialog.close();
+            });
+            buttonBox.getChildren().add(choiceButton);
         }
-        return null;
+
+        dialog.getDialogPane().setContent(buttonBox);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == cancelButtonType) {
+                return null;
+            }
+            return dialog.getResult();
+        });
+
+        Optional<PieceType> result = dialog.showAndWait();
+        return result.orElse(null);
     }
 
     private void clearSelectionAndHighlights() {
@@ -381,7 +413,11 @@ public class ChessController {
 
     private void highlightAvailableMoves() {
         for (Move move : availableMovesForSelectedPiece) {
-            StackPane targetPane = squarePanes[move.getEndSquare().getRow()][move.getEndSquare().getCol()];
+            Square endModelSquare = move.getEndSquare();
+            int endViewRow = boardIsFlipped ? (Board.SIZE - 1 - endModelSquare.getRow()) : endModelSquare.getRow();
+            int endViewCol = boardIsFlipped ? (Board.SIZE - 1 - endModelSquare.getCol()) : endModelSquare.getCol();
+
+            StackPane targetPane = squarePanes[endViewRow][endViewCol];
             if (targetPane.getChildren().size() > 3 && targetPane.getChildren().get(3) instanceof javafx.scene.shape.Circle indicator) {
                 indicator.getStyleClass().clear();
                 indicator.getStyleClass().add("move-indicator-dot");
@@ -432,11 +468,13 @@ public class ChessController {
         };
         statusLabel.setText(status);
         if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Game Over");
-            alert.setHeaderText(null);
-            alert.setContentText(status);
-            alert.showAndWait();
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Game Over");
+                alert.setHeaderText(null);
+                alert.setContentText(status);
+                alert.showAndWait();
+            });
         }
     }
 
@@ -533,5 +571,14 @@ public class ChessController {
             case PAWN -> 1;
             default -> 0;
         };
+    }
+
+    @FXML
+    private void handleFlipBoard() {
+        boardIsFlipped = !boardIsFlipped;
+        refreshBoardView();
+        if (selectedSquare != null) {
+            clearSelectionAndHighlights();
+        }
     }
 }

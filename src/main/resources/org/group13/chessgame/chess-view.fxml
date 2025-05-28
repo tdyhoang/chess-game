@@ -20,6 +20,7 @@
                     styleClass="game-button, new-game-button"/>
             <Button fx:id="undoMoveButton" text="Undo Last Move" onAction="#handleUndoMove" prefWidth="150"
                     styleClass="game-button, undo-button"/>
+            <Button fx:id="flipBoardButton" text="Flip Board" onAction="#handleFlipBoard" prefWidth="150"/>
             <Label fx:id="statusLabel" styleClass="status-label"/>
 
             <Label text="Captured by White:"/>
