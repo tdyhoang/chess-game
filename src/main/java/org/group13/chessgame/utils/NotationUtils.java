@@ -2,6 +2,9 @@ package org.group13.chessgame.utils;
 
 import org.group13.chessgame.model.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class NotationUtils {
 
     public static String squareToAlgebraic(Square square) {
@@ -16,8 +19,7 @@ public class NotationUtils {
 
         // Castle
         if (move.isCastlingMove()) {
-            String suffix = getCheckOrCheckmateSuffix(game);
-            return (move.getEndSquare().getCol() < move.getStartSquare().getCol() ? "O-O-O" : "O-O") + suffix;
+            return (move.getEndSquare().getCol() < move.getStartSquare().getCol() ? "O-O-O" : "O-O");
         }
 
         StringBuilder sb = new StringBuilder();
@@ -28,14 +30,15 @@ public class NotationUtils {
             sb.append(getPieceChar(pieceMoved.getType()));
         }
 
-        // 2. TODO: Xử lý trường hợp có nhiều quân cờ cùng loại có thể đi đến ô đó
-        // Trước mắt xử lý tốt (chốt), còn lại tính sau
-        if (pieceMoved.getType() == PieceType.PAWN && move.getPieceCaptured() != null) {
-            sb.append(squareToAlgebraic(move.getStartSquare()).charAt(0));
-        }
+        // 2. Xử lý trường hợp có nhiều quân cờ cùng loại có thể đi đến ô đó
+        String disambiguation = calculateDisambiguation(move, game);
+        sb.append(disambiguation);
 
         // 3. Ký hiệu ăn (x)
         if (move.getPieceCaptured() != null) {
+            if (pieceMoved.getType() == PieceType.PAWN && disambiguation.isEmpty()) {
+                sb.append(squareToAlgebraic(move.getStartSquare()).charAt(0));
+            }
             sb.append("x");
         }
 
@@ -47,25 +50,49 @@ public class NotationUtils {
             sb.append("=").append(getPieceChar(move.getPromotionPieceType()));
         }
 
-        // 7. Check (+) hoặc checkmate (#)
-        sb.append(getCheckOrCheckmateSuffix(game));
-
         return sb.toString();
     }
 
-    private static String getCheckOrCheckmateSuffix(Game game) {
-        Game.GameState currentState = game.getGameState();
+    private static String calculateDisambiguation(Move move, Game game) {
+        Piece pieceMoved = move.getPieceMoved();
+        Square fromSquare = move.getStartSquare();
+        Square toSquare = move.getEndSquare();
 
-        if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE) {
-            return "#";
-        } else if (currentState == Game.GameState.CHECK) {
-            if (game.isKingInCheck(game.getCurrentPlayer().getColor())) {
-                return "+";
+        if (pieceMoved.getType() == PieceType.PAWN || pieceMoved.getType() == PieceType.KING) return "";
+
+        List<Square> ambiguousSources = new ArrayList<>();
+        List<Move> allLegalMovesForPlayer = game.getAllLegalMovesForPlayer(pieceMoved.getColor());
+        for (Move legalMove : allLegalMovesForPlayer) {
+            if (legalMove.getStartSquare() != fromSquare && legalMove.getPieceMoved().getType() == pieceMoved.getType() && legalMove.getEndSquare() == toSquare) {
+                ambiguousSources.add(legalMove.getStartSquare());
             }
         }
-        if (currentState == Game.GameState.CHECK) return "+";
 
-        return "";
+        if (ambiguousSources.isEmpty()) return "";
+
+        boolean fileSufficient = true;
+        for (Square otherSq : ambiguousSources) {
+            if (otherSq.getCol() == fromSquare.getCol()) {
+                fileSufficient = false;
+                break;
+            }
+        }
+        if (fileSufficient) {
+            return String.valueOf(squareToAlgebraic(fromSquare).charAt(0));
+        }
+
+        boolean rankSufficient = true;
+        for (Square otherSq : ambiguousSources) {
+            if (otherSq.getRow() == fromSquare.getRow()) {
+                rankSufficient = false;
+                break;
+            }
+        }
+        if (rankSufficient) {
+            return String.valueOf(squareToAlgebraic(fromSquare).charAt(1));
+        }
+
+        return squareToAlgebraic(fromSquare);
     }
 
     private static String getPieceChar(PieceType type) {

@@ -21,10 +21,6 @@ public class QueenTest {
         whiteQueen = new Queen(PieceColor.WHITE);
     }
 
-    private boolean containsMove(List<Move> moves, int startRow, int startCol, int endRow, int endCol) {
-        return moves.stream().anyMatch(m -> m.getStartSquare().getRow() == startRow && m.getStartSquare().getCol() == startCol && m.getEndSquare().getRow() == endRow && m.getEndSquare().getCol() == endCol);
-    }
-
     @Test
     @DisplayName("Queen on empty board from d4")
     void queenOnEmptyBoard() {

@@ -1,5 +1,7 @@
 package org.group13.chessgame.model;
 
+import org.group13.chessgame.utils.NotationUtils;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -101,6 +103,14 @@ public class Game {
         }
     }
 
+    public Player getWhitePlayerInstance() {
+        return whitePlayer;
+    }
+
+    public Player getBlackPlayerInstance() {
+        return blackPlayer;
+    }
+
     private void updateKingSquares() {
         for (int r = 0; r < Board.SIZE; r++) {
             for (int c = 0; c < Board.SIZE; c++) {
@@ -186,6 +196,8 @@ public class Game {
             newHash ^= zobristTable.getPieceKey(rookForCastling.getType(), rookForCastling.getColor(), rookOriginalSquare.getRow(), rookOriginalSquare.getCol());
         }
 
+        String sanBasic = NotationUtils.moveToAlgebraic(actualMoveToMake, this);
+
         board.applyMove(actualMoveToMake);
 
         Piece captured = actualMoveToMake.getPieceCaptured();
@@ -247,6 +259,14 @@ public class Game {
         switchPlayer();
 
         updateGameState();
+
+        String suffix = "";
+        if (this.gameState == GameState.WHITE_WINS_CHECKMATE || this.gameState == GameState.BLACK_WINS_CHECKMATE) {
+            suffix = "#";
+        } else if (this.gameState == GameState.CHECK) {
+            suffix = "+";
+        }
+        actualMoveToMake.setStandardAlgebraicNotation(sanBasic + suffix);
 
         return true;
     }

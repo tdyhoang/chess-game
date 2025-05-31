@@ -17,6 +17,21 @@ public class Board {
         return row >= 0 && row < SIZE && col >= 0 && col < SIZE;
     }
 
+    private static Piece getNewPiece(Piece p) {
+        Piece newPiece = null;
+        switch (p) {
+            case Pawn ignored -> newPiece = new Pawn(p.getColor());
+            case Rook ignored -> newPiece = new Rook(p.getColor());
+            case Knight ignored -> newPiece = new Knight(p.getColor());
+            case Bishop ignored -> newPiece = new Bishop(p.getColor());
+            case Queen ignored -> newPiece = new Queen(p.getColor());
+            case King ignored -> newPiece = new King(p.getColor());
+            default -> {
+            }
+        }
+        return newPiece;
+    }
+
     public Square getSquare(int row, int col) {
         if (isValidCoordinate(row, col)) {
             return squares[row][col];
@@ -168,13 +183,7 @@ public class Board {
             for (int c = 0; c < SIZE; c++) {
                 Piece p = this.getPiece(r, c);
                 if (p != null) {
-                    Piece newPiece = null;
-                    if (p instanceof Pawn) newPiece = new Pawn(p.getColor());
-                    else if (p instanceof Rook) newPiece = new Rook(p.getColor());
-                    else if (p instanceof Knight) newPiece = new Knight(p.getColor());
-                    else if (p instanceof Bishop) newPiece = new Bishop(p.getColor());
-                    else if (p instanceof Queen) newPiece = new Queen(p.getColor());
-                    else if (p instanceof King) newPiece = new King(p.getColor());
+                    Piece newPiece = getNewPiece(p);
 
                     if (newPiece != null) {
                         newPiece.setHasMoved(p.hasMoved());

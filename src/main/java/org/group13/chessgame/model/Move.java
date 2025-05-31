@@ -19,6 +19,7 @@ public class Move {
     private boolean isEnPassantMove = false;
     private Square enPassantCaptureSquare = null;
     private PieceType promotionPieceType = null;
+    private String standardAlgebraicNotation;
 
     public Move(Square startSquare, Square endSquare, Piece pieceMoved, boolean pieceMovedOriginalHasMoved) {
         this.startSquare = startSquare;
@@ -169,5 +170,13 @@ public class Move {
         result = 31 * result + (isCastlingMove ? 1 : 0);
         result = 31 * result + (isEnPassantMove ? 1 : 0);
         return result;
+    }
+
+    public String getStandardAlgebraicNotation() {
+        return standardAlgebraicNotation;
+    }
+
+    public void setStandardAlgebraicNotation(String san) {
+        this.standardAlgebraicNotation = san;
     }
 }

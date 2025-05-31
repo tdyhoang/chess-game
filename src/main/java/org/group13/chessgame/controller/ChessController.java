@@ -16,19 +16,22 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
-import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import org.group13.chessgame.model.*;
-import org.group13.chessgame.utils.NotationUtils;
+import org.group13.chessgame.pgn.PgnHeaders;
+import org.group13.chessgame.utils.PgnFormatter;
 import org.group13.chessgame.utils.PieceImageProvider;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URL;
 import java.util.*;
 
@@ -44,6 +47,8 @@ public class ChessController {
     private final List<Piece> whiteCapturedPieces = new ArrayList<>();
     private final List<Piece> blackCapturedPieces = new ArrayList<>();
     private final ObservableList<String> moveHistoryObservableList = FXCollections.observableArrayList();
+    @FXML
+    private BorderPane rootPane;
     @FXML
     private GridPane boardGridPane;
     @FXML
@@ -681,7 +686,7 @@ public class ChessController {
     }
 
     private void addMoveToHistoryView(Move move) {
-        String algebraicNotation = NotationUtils.moveToAlgebraic(move, gameModel);
+        String algebraicNotation = gameModel.getMoveHistory().getLast().getStandardAlgebraicNotation();
         int moveNumber = (gameModel.getMoveHistory().size() + 1) / 2;
 
         if (move.getPieceMoved().getColor() == PieceColor.WHITE) {
@@ -739,5 +744,45 @@ public class ChessController {
         boardIsFlipped = !boardIsFlipped;
         clearSelectionAndHighlights();
         refreshBoardView();
+    }
+
+    @FXML
+    private void handleSaveGame() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Game as PGN");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN Files (*.pgn)", "*.pgn"));
+        File file = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
+
+        if (file != null) {
+            try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+                PgnHeaders headers = new PgnHeaders();
+                headers.setEvent("Casual Game");
+                headers.setSite("Local Machine");
+                headers.setDate(java.time.LocalDate.now().toString().replace("-", "."));
+                headers.setRound("1");
+                headers.setWhite(gameModel.getWhitePlayerInstance().getColor().toString());
+                headers.setBlack(gameModel.getBlackPlayerInstance().getColor().toString());
+                headers.setResult(getPgnResult(gameModel.getGameState()));
+
+                String pgnContent = PgnFormatter.formatGame(headers, gameModel.getMoveHistory(), gameModel.getGameState());
+                writer.print(pgnContent);
+                updateStatusLabel("Game saved as PGN: " + file.getName());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private String getPgnResult(Game.GameState state) {
+        return switch (state) {
+            case WHITE_WINS_CHECKMATE -> "1-0";
+            case BLACK_WINS_CHECKMATE -> "0-1";
+            case STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW -> "1/2-1/2";
+            default -> "*";
+        };
+    }
+
+    @FXML
+    private void handleLoadGame() {
     }
 }

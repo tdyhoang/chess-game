@@ -11,22 +11,25 @@
   liên quan đến GameState trong file (và cả trong Controller) rồi bổ sung GameState mới tương ứng).
 - Đồng thời viết method đầu hàng trong đây rồi có thể gọi nó từ Controller.
 
-### Ghi log ván cờ
+### Ghi log ván cờ (DONE)
 
 #### Tiến độ
 
-- Bước đầu implement `/utils/NotationUtils` để chuyển đổi các nước đi riêng lẻ thành dạng đại số tương thích với PGN (
-  WIP).
-- In ra lịch sử nước đi trong `ChessController`.
-- TODO: Tổng hợp lịch sử các nước đi thành PGN và lưu vào file.
+- `NotationUtils` gần như hoàn thiện, việc xử lý trường hợp có nhiều quân cờ cùng loại có thể đi đến cùng 1 ô vẫn chưa
+  triệt để, tuy nhiên cũng đã đủ dùng cơ bản.
+- DONE: Tổng hợp lịch sử các nước đi thành PGN và lưu vào file.
+- DONE: Đã implement `PgnFormatter` cho tính năng này
 - TODO (optional): Lưu các thông tin khác của ván cờ vào PGN. Tính năng đánh giá và comment nước cờ.
 
 #### Gợi ý hướng làm
 
-- Có thể đọc move từ moveHistory rồi log lại theo chuẩn pgn, thích thì sửa lại method toString() của Move để làm cho
-  tiện luôn cũng được.
+- Lấy move từ `moveHistory` và gọi `getAlgebraicNotation()` để lấy chuỗi PGN tương ứng.
 
 ### Lưu và tải ván chơi
+
+#### Tiến độ
+
+- DONE: Đã xong tính năng lưu ván chơi vào pgn.
 
 #### Gợi ý hướng làm
 

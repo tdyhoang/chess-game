@@ -18,6 +18,8 @@
             <Label fx:id="turnLabel" text="White to move" styleClass="turn-label"/>
             <Button fx:id="newGameButton" text="New Game" onAction="#handleNewGame" prefWidth="150"
                     styleClass="game-button, new-game-button"/>
+            <Button fx:id="saveGameButton" text="Save Game" onAction="#handleSaveGame" prefWidth="150"/>
+            <Button fx:id="loadGameButton" text="Load Game" onAction="#handleLoadGame" prefWidth="150"/>
             <Button fx:id="undoMoveButton" text="Undo Last Move" onAction="#handleUndoMove" prefWidth="150"
                     styleClass="game-button, undo-button"/>
             <Button fx:id="flipBoardButton" text="Flip Board" onAction="#handleFlipBoard" prefWidth="150"/>
