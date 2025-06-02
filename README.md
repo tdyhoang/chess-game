@@ -7,6 +7,15 @@
 
 #### Gợi ý hướng làm
 
+- Thêm `GameState` trong `Game`: `BLACK_WIN_RESIGN`, `WHITE_WIN_RESIGN`
+- Thao tác trên `this.gameModel` trong `ChessController` để cập nhật trạng thái ván cờ.
+- Nếu `gameModel.GameState` là `Active`, `Check` thì mới cho phép đầu hàng.
+- Kiểm tra `Game.currentPlayer` trong `Game` để biết người chơi hiện tại (người đã đầu hàng) là ai.
+- Cập nhật `gameState` của `Game` thành `BLACK_WIN_RESIGN` hoặc `WHITE_WIN_RESIGN` tương ứng.
+- Cập nhật các thông tin trên UI:
+- `refreshBoardView();
+  updateTurnLabel();
+  updateStatusBasedOnGameState();`
 - Trong `/model/Game.java`: Thêm GameState mới để biểu thị game kết thúc bằng cách đầu hàng (check tất cả các điều kiện
   liên quan đến GameState trong file (và cả trong Controller) rồi bổ sung GameState mới tương ứng).
 - Đồng thời viết method đầu hàng trong đây rồi có thể gọi nó từ Controller.
