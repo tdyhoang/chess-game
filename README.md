@@ -18,7 +18,7 @@
   updateTurnLabel();
   updateStatusBasedOnGameState();`
 
-### Ghi log ván cờ (DONE)
+### ~~Ghi log ván cờ (DONE)~~
 
 #### Tiến độ
 
@@ -32,21 +32,13 @@
 
 - Lấy move từ `moveHistory` và gọi `getAlgebraicNotation()` để lấy chuỗi PGN tương ứng.
 
-### Lưu và tải ván chơi
+### ~~Lưu và tải ván chơi (DONE)~~
 
 #### Tiến độ
 
-- DONE: Đã xong tính năng lưu ván chơi vào pgn.
-
-#### Gợi ý hướng làm
-
-- Khi load: Đảm bảo các object/field sau đây có đầy đủ thông tin: `Board`, `Square`, `Piece`, `Player`, `Move` trong
-  `moveHistory`, `positionHistoryCount`, `currentPositionHash`, `halfMoveClock`, `currentPlayer`, `gameState`.
-- ->  Có thể bắt đầu bằng initialize bàn cờ ban đầu rồi lần lượt makeMove các nước theo thứ tự trong danh sách.
-- Phía Controller, gọi 3 method sau khi load xong để cập nhật bàn cờ trên UI:
-  `refreshBoardView();
-  updateTurnLabel();
-  updateStatusBasedOnGameState();`
+- DONE: Đã xong tính năng lưu và tải ván chơi vào pgn.
+- Có thể cải thiện thêm: Tải ván chơi có custom FEN (hiện tại chỉ mới tải được pgn dùng bàn cờ khởi đầu chuẩn).
+- Có thể cải thiện thêm: Cho phép thay đổi thông tin ván cờ (PgnHeaders). Hiện tại chỉ dùng giá trị khởi tạo mặc định hoặc lấy từ file pgn đã lưu.
 
 ### Lưu lịch sử chơi
 

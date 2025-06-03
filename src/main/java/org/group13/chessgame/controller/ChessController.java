@@ -24,8 +24,9 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import org.group13.chessgame.model.*;
-import org.group13.chessgame.pgn.PgnHeaders;
 import org.group13.chessgame.utils.PgnFormatter;
+import org.group13.chessgame.utils.PgnParseException;
+import org.group13.chessgame.utils.PgnParser;
 import org.group13.chessgame.utils.PieceImageProvider;
 
 import java.io.File;
@@ -755,16 +756,7 @@ public class ChessController {
 
         if (file != null) {
             try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-                PgnHeaders headers = new PgnHeaders();
-                headers.setEvent("Casual Game");
-                headers.setSite("Local Machine");
-                headers.setDate(java.time.LocalDate.now().toString().replace("-", "."));
-                headers.setRound("1");
-                headers.setWhite(gameModel.getWhitePlayerInstance().getColor().toString());
-                headers.setBlack(gameModel.getBlackPlayerInstance().getColor().toString());
-                headers.setResult(getPgnResult(gameModel.getGameState()));
-
-                String pgnContent = PgnFormatter.formatGame(headers, gameModel.getMoveHistory(), gameModel.getGameState());
+                String pgnContent = PgnFormatter.formatGame(gameModel.getPgnHeaders(), gameModel.getMoveHistory(), gameModel.getGameState());
                 writer.print(pgnContent);
                 updateStatusLabel("Game saved as PGN: " + file.getName());
             } catch (IOException e) {
@@ -784,5 +776,55 @@ public class ChessController {
 
     @FXML
     private void handleLoadGame() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Load Game from PGN");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN Files (*.pgn)", "*.pgn"));
+        File file = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
+
+        if (file != null) {
+            try {
+                String pgnString = new String(java.nio.file.Files.readAllBytes(file.toPath()));
+
+                this.gameModel = PgnParser.parsePgn(pgnString);
+                selectedSquare = null;
+                availableMovesForSelectedPiece.clear();
+                refreshBoardView();
+                updateTurnLabel();
+                updateStatusBasedOnGameState();
+                undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
+                updateCapturedPiecesView();
+                rebuildMoveHistoryViewFromPgn();
+                updateStatusLabel("Game loaded from PGN: " + file.getName());
+            } catch (IOException | PgnParseException e) {
+                e.printStackTrace();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private void rebuildMoveHistoryViewFromPgn() {
+        moveHistoryObservableList.clear();
+        List<Move> history = gameModel.getMoveHistory();
+        for (int i = 0; i < history.size(); i++) {
+            Move currentMove = history.get(i);
+            String san = currentMove.getStandardAlgebraicNotation();
+            String displayText;
+            if (currentMove.getPieceMoved().getColor() == PieceColor.WHITE) {
+                int moveNumber = (i / 2) + 1;
+                displayText = moveNumber + ". " + san;
+                if (i + 1 < history.size()) {
+                    Move blackMove = history.get(i + 1);
+                    displayText += "  " + blackMove.getStandardAlgebraicNotation();
+                    i++;
+                }
+            } else {
+                displayText = "1. ... " + san;
+            }
+            moveHistoryObservableList.add(displayText);
+        }
+        if (!moveHistoryObservableList.isEmpty()) {
+            moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
+        }
     }
 }

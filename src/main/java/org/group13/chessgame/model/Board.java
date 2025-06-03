@@ -194,4 +194,44 @@ public class Board {
         }
         return newBoard;
     }
+
+    public String getFen() {
+        StringBuilder fen = new StringBuilder();
+        for (int r = 0; r < SIZE; r++) {
+            int emptyCount = 0;
+            for (int c = 0; c < SIZE; c++) {
+                Piece piece = getPiece(r, c);
+                if (piece == null) {
+                    emptyCount++;
+                } else {
+                    if (emptyCount > 0) {
+                        fen.append(emptyCount);
+                        emptyCount = 0;
+                    }
+                    fen.append(getFenChar(piece));
+                }
+            }
+            if (emptyCount > 0) {
+                fen.append(emptyCount);
+            }
+            if (r < SIZE - 1) {
+                fen.append('/');
+            }
+        }
+        fen.append(" ");
+
+        return fen.toString();
+    }
+
+    private char getFenChar(Piece piece) {
+        char c = switch (piece.getType()) {
+            case PAWN -> 'p';
+            case KNIGHT -> 'n';
+            case BISHOP -> 'b';
+            case ROOK -> 'r';
+            case QUEEN -> 'q';
+            case KING -> 'k';
+        };
+        return (piece.getColor() == PieceColor.WHITE) ? Character.toUpperCase(c) : c;
+    }
 }

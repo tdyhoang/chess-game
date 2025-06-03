@@ -1,5 +1,6 @@
 package org.group13.chessgame.model;
 
+import org.group13.chessgame.pgn.PgnHeaders;
 import org.group13.chessgame.utils.NotationUtils;
 
 import java.util.ArrayList;
@@ -24,11 +25,13 @@ public class Game {
     private GameState gameState;
     private Square whiteKingSquare;
     private Square blackKingSquare;
+    private PgnHeaders pgnHeaders;
 
     public Game() {
         this.board = new Board();
         this.whitePlayer = new Player(PieceColor.WHITE);
         this.blackPlayer = new Player(PieceColor.BLACK);
+        this.pgnHeaders = new PgnHeaders();
         this.moveHistory = new ArrayList<>();
         this.positionHistoryCount = new HashMap<>();
         this.piecesCapturedByWhite = new ArrayList<>();
@@ -39,6 +42,7 @@ public class Game {
         board.initializeBoard();
         this.currentPlayer = whitePlayer;
         this.gameState = GameState.ACTIVE;
+        this.pgnHeaders = new PgnHeaders();
         this.moveHistory.clear();
         this.halfMoveClock = 0;
         this.currentPositionHash = calculateBoardHash();
@@ -677,6 +681,79 @@ public class Game {
 
     public List<Piece> getCapturedPieces(PieceColor capturerColor) {
         return (capturerColor == PieceColor.WHITE) ? piecesCapturedByWhite : piecesCapturedByBlack;
+    }
+
+    public boolean makeMoveFromSquares(Square fromSquareModel, Square toSquareModel, PieceType promotionTypeModel) {
+        List<Move> legalMoves = getAllLegalMovesForPlayer(this.currentPlayer.getColor());
+        Move matchedMove = null;
+
+        for (Move legalMove : legalMoves) {
+            if (legalMove.getStartSquare() == fromSquareModel && legalMove.getEndSquare() == toSquareModel) {
+
+                if (legalMove.isPromotion()) {
+                    if (legalMove.getPromotionPieceType() == promotionTypeModel) {
+                        matchedMove = legalMove;
+                        break;
+                    }
+                } else {
+                    if (promotionTypeModel == null) {
+                        matchedMove = legalMove;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (matchedMove != null) {
+            return makeMove(matchedMove);
+        } else {
+            System.err.println("PgnParser Error: Could not find a legal move in model from " + NotationUtils.squareToAlgebraic(fromSquareModel) + " to " + NotationUtils.squareToAlgebraic(toSquareModel) + (promotionTypeModel != null ? "=" + promotionTypeModel : "") + " for player " + currentPlayer.getColor() + ". Current FEN (model): " + getBoard().getFen());
+            System.err.println("Legal moves available in model for " + currentPlayer.getColor() + ":");
+            for (Move m : legalMoves) {
+                String san = NotationUtils.moveToAlgebraic(m, this);
+                System.err.println("  " + san + " (raw: " + m.getStartSquare() + "->" + m.getEndSquare() + (m.isPromotion() ? "=" + m.getPromotionPieceType() : "") + ")");
+            }
+            return false;
+        }
+    }
+
+    public String getFen() {
+        StringBuilder fenBuilder = new StringBuilder();
+        fenBuilder.append(this.board.getFen());
+
+        fenBuilder.append(" ").append(this.currentPlayer.getColor() == PieceColor.WHITE ? "w" : "b");
+
+        fenBuilder.append(" ");
+        StringBuilder castlingFen = new StringBuilder();
+        if (canCastleKingside(PieceColor.WHITE)) castlingFen.append("K");
+        if (canCastleQueenside(PieceColor.WHITE)) castlingFen.append("Q");
+        if (canCastleKingside(PieceColor.BLACK)) castlingFen.append("k");
+        if (canCastleQueenside(PieceColor.BLACK)) castlingFen.append("q");
+        if (castlingFen.isEmpty()) castlingFen.append("-");
+        fenBuilder.append(castlingFen);
+
+        fenBuilder.append(" ");
+        Square epTarget = getEnPassantTargetSquare();
+        if (epTarget != null) {
+            fenBuilder.append(NotationUtils.squareToAlgebraic(epTarget));
+        } else {
+            fenBuilder.append("-");
+        }
+
+        fenBuilder.append(" ").append(this.halfMoveClock);
+
+        int fullMoves = (this.moveHistory.size() / 2) + 1;
+        fenBuilder.append(" ").append(fullMoves);
+
+        return fenBuilder.toString();
+    }
+
+    public PgnHeaders getPgnHeaders() {
+        return pgnHeaders;
+    }
+
+    public void setPgnHeaders(PgnHeaders headers) {
+        this.pgnHeaders = (headers != null) ? headers : new PgnHeaders();
     }
 
     public enum GameState {

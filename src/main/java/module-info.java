@@ -4,6 +4,7 @@ module org.group13.chessgame {
 
     requires org.controlsfx.controls;
     requires javafx.media;
+    requires chesslib;
 
     opens org.group13.chessgame to javafx.fxml, javafx.graphics;
     opens org.group13.chessgame.controller to javafx.fxml;
