@@ -64,6 +64,8 @@ public class ChessController {
     private FlowPane capturedByBlackPane;
     @FXML
     private ListView<String> moveHistoryListView;
+    @FXML
+    private Button surrenderButton;
     private Game gameModel;
     private StackPane[][] squarePanes;
     private Square selectedSquare = null;
@@ -282,9 +284,12 @@ public class ChessController {
         refreshBoardView();
         updateTurnLabel();
         updateStatusLabel("");
-        undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
+        //undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
         whiteCapturedPieces.clear();
         blackCapturedPieces.clear();
+        undoMoveButton.setDisable(true);
+        surrenderButton.setDisable(false);
+        boardGridPane.setMouseTransparent(false);
         updateCapturedPiecesView();
     }
 
@@ -508,7 +513,8 @@ public class ChessController {
         Game.GameState currentState = gameModel.getGameState();
         if (currentState == Game.GameState.CHECK) {
             playSound(checkSoundPlayer);
-        } else if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE || isDrawState(currentState)) {
+        } else if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE ||
+                   currentState == Game.GameState.WHITE_SURRENDERS || currentState == Game.GameState.BLACK_SURRENDERS || isDrawState(currentState)) {
             playSound(endGameSoundPlayer);
         }
     }
@@ -517,22 +523,22 @@ public class ChessController {
         return state == Game.GameState.STALEMATE_DRAW || state == Game.GameState.FIFTY_MOVE_DRAW || state == Game.GameState.THREEFOLD_REPETITION_DRAW || state == Game.GameState.INSUFFICIENT_MATERIAL_DRAW;
     }
 
-    private PieceType askForPromotionType() {
-        Dialog<PieceType> dialog = new Dialog<>();
-        dialog.setTitle("Pawn Promotion");
-        dialog.setHeaderText("Choose a piece to promote your pawn to:");
+        private PieceType askForPromotionType() {
+            Dialog<PieceType> dialog = new Dialog<>();
+            dialog.setTitle("Pawn Promotion");
+            dialog.setHeaderText("Choose a piece to promote your pawn to:");
 
-        ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-        dialog.getDialogPane().getButtonTypes().add(cancelButtonType);
+            ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+            dialog.getDialogPane().getButtonTypes().add(cancelButtonType);
 
-        HBox buttonBox = new HBox(10);
-        buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.setPadding(new Insets(20));
+            HBox buttonBox = new HBox(10);
+            buttonBox.setAlignment(Pos.CENTER);
+            buttonBox.setPadding(new Insets(20));
 
-        PieceColor promotionColor = gameModel.getCurrentPlayer().getColor();
-        PieceType[] promotionOptions = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
+            PieceColor promotionColor = gameModel.getCurrentPlayer().getColor();
+            PieceType[] promotionOptions = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
 
-        for (PieceType type : promotionOptions) {
+            for (PieceType type : promotionOptions) {
             ImageView pieceView = PieceImageProvider.getImageViewFor(type, promotionColor, 50);
             Button choiceButton = new Button("", pieceView);
             choiceButton.setPrefSize(70, 70);
@@ -627,6 +633,8 @@ public class ChessController {
             case CHECK -> gameModel.getCurrentPlayer().getColor() + " is in Check!";
             case WHITE_WINS_CHECKMATE -> "Checkmate! WHITE wins.";
             case BLACK_WINS_CHECKMATE -> "Checkmate! BLACK wins.";
+            case WHITE_SURRENDERS -> "BLACK wins by surrender.";
+            case BLACK_SURRENDERS -> "WHITE wins by surrender.";
             case STALEMATE_DRAW -> "Stalemate! It's a draw.";
             case FIFTY_MOVE_DRAW -> "Draw by 50-move rule.";
             case THREEFOLD_REPETITION_DRAW -> "Draw by threefold repetition.";
@@ -641,6 +649,7 @@ public class ChessController {
                 alert.setHeaderText(null);
                 alert.setContentText(status);
                 alert.showAndWait();
+                //boardGridPane.setMouseTransparent(true);
             });
         }
     }
@@ -659,6 +668,44 @@ public class ChessController {
             updateStatusBasedOnGameState();
             undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
             updateCapturedPiecesView();
+        }
+    }
+
+    @FXML
+    private void handleSurrender() {
+        if (isGameOver()) {
+            System.out.println("Surrender blocked: Game is already over with state " + gameModel.getGameState());
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirm surrender");
+        confirmation.setHeaderText(null);
+        confirmation.setContentText("Do you really want to surrender?");
+        Optional<ButtonType> result = confirmation.showAndWait();
+
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            PieceColor currentPlayerColor = gameModel.getCurrentPlayer().getColor();
+            String winner = (currentPlayerColor == PieceColor.WHITE) ? "BLACK" : "WHITE";
+            System.out.println("Surrender initiated by " + currentPlayerColor);
+
+            // Gọi phương thức surrender từ Game
+            gameModel.surrender();
+
+            // Cập nhật giao diện
+            updateStatusBasedOnGameState();
+            updateTurnLabel();
+            refreshBoardView();
+            boardGridPane.setMouseTransparent(true); // Khóa bàn cờ
+            undoMoveButton.setDisable(true);
+            surrenderButton.setDisable(true);
+
+            // Thêm vào lịch sử nước đi
+            moveHistoryObservableList.add(currentPlayerColor + " surrenders");
+            moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
+
+            // Phát âm thanh
+            playSound(endGameSoundPlayer);
         }
     }
 
@@ -767,8 +814,8 @@ public class ChessController {
 
     private String getPgnResult(Game.GameState state) {
         return switch (state) {
-            case WHITE_WINS_CHECKMATE -> "1-0";
-            case BLACK_WINS_CHECKMATE -> "0-1";
+            case WHITE_WINS_CHECKMATE, BLACK_SURRENDERS -> "1-0";
+            case BLACK_WINS_CHECKMATE, WHITE_SURRENDERS -> "0-1";
             case STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW -> "1/2-1/2";
             default -> "*";
         };

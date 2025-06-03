@@ -3,7 +3,7 @@
 - Nếu có gì cần lưu ý trong các tính năng này thì note ra đây để dễ theo dõi làm chung.
 - Cập nhật tiến độ làm ở file này luôn nếu có thể (ít nhất là khi nào xong tính năng nào thì ghi lên đây).
 
-### Đầu hàng
+### Đầu hàng (DONE)
 
 #### Gợi ý hướng làm
 

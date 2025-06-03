@@ -180,3 +180,26 @@
 .drag-over-square-overlay {
     -fx-fill: rgba(20, 85, 30, 0.3);
 }
+
+.surrender-button {
+    -fx-background-color: #e57373;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-background-radius: 4px;
+    -fx-padding: 8px 15px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 5, 0.1, 1, 1);
+}
+
+.surrender-button:hover {
+    -fx-background-color: #ef5350;
+}
+
+.surrender-button:pressed {
+    -fx-background-color: #d32f2f;
+}
+
+.surrender-button:disabled {
+    -fx-opacity: 0.5;
+    -fx-effect: none;
+}

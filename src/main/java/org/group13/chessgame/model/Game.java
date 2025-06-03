@@ -107,6 +107,15 @@ public class Game {
         }
     }
 
+
+    public void surrender() {
+        if (gameState != GameState.ACTIVE && gameState != GameState.CHECK) {
+            return;
+        }
+        gameState = (currentPlayer.getColor() == PieceColor.WHITE) ? GameState.WHITE_SURRENDERS : GameState.BLACK_SURRENDERS;
+        System.out.println("After surrender - GameState: " + gameState);
+    }
+
     public Player getWhitePlayerInstance() {
         return whitePlayer;
     }
@@ -289,6 +298,9 @@ public class Game {
     }
 
     private void updateGameState() {
+        if (gameState == GameState.WHITE_SURRENDERS || gameState == GameState.BLACK_SURRENDERS) {
+            return;
+        }
         PieceColor opponentColor = currentPlayer.getColor();
         boolean inCheck = isKingInCheck(opponentColor);
         List<Move> legalMovesForCurrentPlayer = getAllLegalMovesForPlayer(opponentColor);
@@ -360,7 +372,8 @@ public class Game {
 
     public List<Move> getAllLegalMovesForPlayer(PieceColor playerColor) {
         List<Move> legalMoves = new ArrayList<>();
-        if (gameState == GameState.BLACK_WINS_CHECKMATE || gameState == GameState.WHITE_WINS_CHECKMATE || gameState == GameState.STALEMATE_DRAW || gameState == GameState.FIFTY_MOVE_DRAW || gameState == GameState.THREEFOLD_REPETITION_DRAW || gameState == GameState.INSUFFICIENT_MATERIAL_DRAW) {
+        if (gameState == GameState.BLACK_WINS_CHECKMATE || gameState == GameState.WHITE_WINS_CHECKMATE || gameState == GameState.STALEMATE_DRAW || gameState == GameState.FIFTY_MOVE_DRAW || gameState == GameState.THREEFOLD_REPETITION_DRAW || gameState == GameState.INSUFFICIENT_MATERIAL_DRAW ||
+            gameState == GameState.BLACK_SURRENDERS || gameState == GameState.WHITE_SURRENDERS) {
             return legalMoves;
         }
 
@@ -757,7 +770,8 @@ public class Game {
     }
 
     public enum GameState {
-        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW
+        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW,
+        WHITE_SURRENDERS, BLACK_SURRENDERS
     }
 
     public static class PiecePlacement {
