@@ -15,6 +15,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
 import javafx.scene.media.Media;
@@ -47,7 +48,8 @@ public class ChessController {
     private static final int MOVE_INDICATOR_INDEX = 5;
     private final List<Piece> whiteCapturedPieces = new ArrayList<>();
     private final List<Piece> blackCapturedPieces = new ArrayList<>();
-    private final ObservableList<String> moveHistoryObservableList = FXCollections.observableArrayList();
+    private final ObservableList<MovePairDisplay> moveHistoryObservableList = FXCollections.observableArrayList();
+    private int currentPlyPointer = -1;
     @FXML
     private BorderPane rootPane;
     @FXML
@@ -59,11 +61,13 @@ public class ChessController {
     @FXML
     private Button undoMoveButton;
     @FXML
+    private Button redoMoveButton;
+    @FXML
     private FlowPane capturedByWhitePane;
     @FXML
     private FlowPane capturedByBlackPane;
     @FXML
-    private ListView<String> moveHistoryListView;
+    private ListView<MovePairDisplay> moveHistoryListView;
     @FXML
     private Button surrenderButton;
     private Game gameModel;
@@ -78,6 +82,7 @@ public class ChessController {
         this.gameModel = new Game();
         this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
         moveHistoryListView.setItems(moveHistoryObservableList);
+        setupMoveHistoryCellFactory();
         initializeBoardGrid();
         loadSounds();
         startNewGame();
@@ -277,17 +282,22 @@ public class ChessController {
         return gameModel.getBoard().getSquare(targetModelRow, targetModelCol);
     }
 
+    private void setupMoveHistoryCellFactory() {
+        moveHistoryListView.setCellFactory(listView -> new MoveListCell(this));
+    }
+
     private void startNewGame() {
         gameModel.initializeGame();
         clearSelectionAndHighlights();
-        moveHistoryObservableList.clear();
+        currentPlyPointer = -1;
+        rebuildMoveHistoryView();
         refreshBoardView();
         updateTurnLabel();
         updateStatusLabel("");
-        //undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
         whiteCapturedPieces.clear();
         blackCapturedPieces.clear();
-        undoMoveButton.setDisable(true);
+        updateUndoRedoButtonStates();
+        updateMoveHistoryViewHighlightAndScroll();
         surrenderButton.setDisable(false);
         boardGridPane.setMouseTransparent(false);
         updateCapturedPiecesView();
@@ -475,13 +485,14 @@ public class ChessController {
     }
 
     private void performMoveLogic(Move move) {
-        boolean moveMade = gameModel.makeMove(move);
-        if (moveMade) {
-            addMoveToHistoryView(move);
+        Move executedMove = gameModel.makeMove(move);
+        if (executedMove != null) {
+            currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
+            rebuildMoveHistoryView();
             refreshBoardView();
             updateTurnLabel();
-            undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty() || isGameOver());
-            Piece captured = move.getPieceCaptured();
+            updateUndoRedoButtonStates();
+            Piece captured = executedMove.getPieceCaptured();
             if (captured != null) {
                 if (captured.getColor() == PieceColor.BLACK) {
                     whiteCapturedPieces.add(captured);
@@ -490,7 +501,8 @@ public class ChessController {
                 }
             }
             updateCapturedPiecesView();
-            playMoveSounds(move);
+            updateMoveHistoryViewHighlightAndScroll();
+            playMoveSounds(executedMove);
             updateStatusBasedOnGameState();
         } else {
             updateStatusLabel("Error: Invalid move attempted!");
@@ -513,8 +525,7 @@ public class ChessController {
         Game.GameState currentState = gameModel.getGameState();
         if (currentState == Game.GameState.CHECK) {
             playSound(checkSoundPlayer);
-        } else if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE ||
-                   currentState == Game.GameState.WHITE_SURRENDERS || currentState == Game.GameState.BLACK_SURRENDERS || isDrawState(currentState)) {
+        } else if (currentState == Game.GameState.WHITE_WINS_CHECKMATE || currentState == Game.GameState.BLACK_WINS_CHECKMATE || currentState == Game.GameState.WHITE_SURRENDERS || currentState == Game.GameState.BLACK_SURRENDERS || isDrawState(currentState)) {
             playSound(endGameSoundPlayer);
         }
     }
@@ -523,22 +534,22 @@ public class ChessController {
         return state == Game.GameState.STALEMATE_DRAW || state == Game.GameState.FIFTY_MOVE_DRAW || state == Game.GameState.THREEFOLD_REPETITION_DRAW || state == Game.GameState.INSUFFICIENT_MATERIAL_DRAW;
     }
 
-        private PieceType askForPromotionType() {
-            Dialog<PieceType> dialog = new Dialog<>();
-            dialog.setTitle("Pawn Promotion");
-            dialog.setHeaderText("Choose a piece to promote your pawn to:");
+    private PieceType askForPromotionType() {
+        Dialog<PieceType> dialog = new Dialog<>();
+        dialog.setTitle("Pawn Promotion");
+        dialog.setHeaderText("Choose a piece to promote your pawn to:");
 
-            ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-            dialog.getDialogPane().getButtonTypes().add(cancelButtonType);
+        ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().add(cancelButtonType);
 
-            HBox buttonBox = new HBox(10);
-            buttonBox.setAlignment(Pos.CENTER);
-            buttonBox.setPadding(new Insets(20));
+        HBox buttonBox = new HBox(10);
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setPadding(new Insets(20));
 
-            PieceColor promotionColor = gameModel.getCurrentPlayer().getColor();
-            PieceType[] promotionOptions = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
+        PieceColor promotionColor = gameModel.getCurrentPlayer().getColor();
+        PieceType[] promotionOptions = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
 
-            for (PieceType type : promotionOptions) {
+        for (PieceType type : promotionOptions) {
             ImageView pieceView = PieceImageProvider.getImageViewFor(type, promotionColor, 50);
             Button choiceButton = new Button("", pieceView);
             choiceButton.setPrefSize(70, 70);
@@ -648,7 +659,7 @@ public class ChessController {
                 alert.setTitle("Game Over");
                 alert.setHeaderText(null);
                 alert.setContentText(status);
-                alert.showAndWait();
+                alert.show();
                 //boardGridPane.setMouseTransparent(true);
             });
         }
@@ -661,14 +672,39 @@ public class ChessController {
 
     @FXML
     private void handleUndoMove() {
-        if (gameModel.undoLastMove()) {
-            removeLastMoveFromHistoryView();
+        clearSelectionAndHighlights();
+        Move undoneMove = gameModel.undo();
+        if (undoneMove != null) {
+            currentPlyPointer--;
+            rebuildMoveHistoryView();
             refreshBoardView();
             updateTurnLabel();
             updateStatusBasedOnGameState();
-            undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
+            updateUndoRedoButtonStates();
             updateCapturedPiecesView();
+            updateMoveHistoryViewHighlightAndScroll();
         }
+    }
+
+    @FXML
+    private void handleRedoMove() {
+        clearSelectionAndHighlights();
+        Move redoneMove = gameModel.redo();
+        if (redoneMove != null) {
+            currentPlyPointer++;
+            rebuildMoveHistoryView();
+            refreshBoardView();
+            updateTurnLabel();
+            updateStatusBasedOnGameState();
+            updateUndoRedoButtonStates();
+            updateCapturedPiecesView();
+            updateMoveHistoryViewHighlightAndScroll();
+        }
+    }
+
+    private void updateUndoRedoButtonStates() {
+        undoMoveButton.setDisable(!gameModel.canUndo());
+        redoMoveButton.setDisable(!gameModel.canRedo());
     }
 
     @FXML
@@ -701,8 +737,8 @@ public class ChessController {
             surrenderButton.setDisable(true);
 
             // Thêm vào lịch sử nước đi
-            moveHistoryObservableList.add(currentPlayerColor + " surrenders");
-            moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
+//            moveHistoryObservableList.add(currentPlayerColor + " surrenders");
+//            moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
 
             // Phát âm thanh
             playSound(endGameSoundPlayer);
@@ -733,49 +769,6 @@ public class ChessController {
         }
     }
 
-    private void addMoveToHistoryView(Move move) {
-        String algebraicNotation = gameModel.getMoveHistory().getLast().getStandardAlgebraicNotation();
-        int moveNumber = (gameModel.getMoveHistory().size() + 1) / 2;
-
-        if (move.getPieceMoved().getColor() == PieceColor.WHITE) {
-            moveHistoryObservableList.add(moveNumber + ". " + algebraicNotation);
-        } else {
-            if (!moveHistoryObservableList.isEmpty()) {
-                int lastIndex = moveHistoryObservableList.size() - 1;
-                String lastEntry = moveHistoryObservableList.get(lastIndex);
-                if (lastEntry.matches("^\\d+\\.\\s\\S+$")) {
-                    moveHistoryObservableList.set(lastIndex, lastEntry + "  " + algebraicNotation);
-                } else {
-                    moveHistoryObservableList.add(moveNumber + ". ... " + algebraicNotation);
-                }
-            } else {
-                moveHistoryObservableList.add(moveNumber + ". ... " + algebraicNotation);
-            }
-        }
-        moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
-    }
-
-    private void removeLastMoveFromHistoryView() {
-        if (!moveHistoryObservableList.isEmpty()) {
-            int lastIndex = moveHistoryObservableList.size() - 1;
-            String lastEntry = moveHistoryObservableList.get(lastIndex);
-
-            if (gameModel.getCurrentPlayer().getColor() == PieceColor.BLACK) {
-                int secondMoveStartIndex = lastEntry.indexOf("  ");
-                if (secondMoveStartIndex != -1 && lastEntry.substring(0, secondMoveStartIndex).contains(".")) {
-                    moveHistoryObservableList.set(lastIndex, lastEntry.substring(0, secondMoveStartIndex));
-                } else {
-                    moveHistoryObservableList.remove(lastIndex);
-                }
-            } else {
-                moveHistoryObservableList.remove(lastIndex);
-            }
-        }
-        if (!moveHistoryObservableList.isEmpty()) {
-            moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
-        }
-    }
-
     private int getPieceValue(PieceType type) {
         return switch (type) {
             case QUEEN -> 9;
@@ -803,7 +796,7 @@ public class ChessController {
 
         if (file != null) {
             try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-                String pgnContent = PgnFormatter.formatGame(gameModel.getPgnHeaders(), gameModel.getMoveHistory(), gameModel.getGameState());
+                String pgnContent = PgnFormatter.formatGame(gameModel.getPgnHeaders(), gameModel.getPlayedMoveSequence(), gameModel.getGameState());
                 writer.print(pgnContent);
                 updateStatusLabel("Game saved as PGN: " + file.getName());
             } catch (IOException e) {
@@ -838,9 +831,10 @@ public class ChessController {
                 refreshBoardView();
                 updateTurnLabel();
                 updateStatusBasedOnGameState();
-                undoMoveButton.setDisable(gameModel.getMoveHistory().isEmpty());
+                updateUndoRedoButtonStates();
                 updateCapturedPiecesView();
-                rebuildMoveHistoryViewFromPgn();
+                currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
+                rebuildMoveHistoryView();
                 updateStatusLabel("Game loaded from PGN: " + file.getName());
             } catch (IOException | PgnParseException e) {
                 e.printStackTrace();
@@ -850,28 +844,144 @@ public class ChessController {
         }
     }
 
-    private void rebuildMoveHistoryViewFromPgn() {
+    private void jumpToMoveState(int targetPly) {
+        if (targetPly == currentPlyPointer) return;
+        clearSelectionAndHighlights();
+
+        int steps = targetPly - currentPlyPointer;
+
+        if (steps < 0) {
+            for (int i = 0; i < Math.abs(steps); i++) {
+                if (!gameModel.canUndo()) break;
+                gameModel.undo();
+            }
+        } else {
+            for (int i = 0; i < steps; i++) {
+                if (!gameModel.canRedo()) break;
+                gameModel.redo();
+            }
+        }
+        currentPlyPointer = targetPly;
+        rebuildMoveHistoryView();
+
+        refreshBoardView();
+        updateTurnLabel();
+        updateStatusBasedOnGameState();
+        updateUndoRedoButtonStates();
+        updateCapturedPiecesView();
+        updateMoveHistoryViewHighlightAndScroll();
+    }
+
+    private void updateMoveHistoryViewHighlightAndScroll() {
+        moveHistoryListView.refresh();
+        if (currentPlyPointer >= 0) {
+            int displayIndex = currentPlyPointer / 2;
+            if (displayIndex < moveHistoryObservableList.size()) {
+                javafx.application.Platform.runLater(() -> moveHistoryListView.scrollTo(displayIndex));
+            }
+        }
+    }
+
+    private void rebuildMoveHistoryView() {
         moveHistoryObservableList.clear();
-        List<Move> history = gameModel.getMoveHistory();
-        for (int i = 0; i < history.size(); i++) {
-            Move currentMove = history.get(i);
-            String san = currentMove.getStandardAlgebraicNotation();
-            String displayText;
-            if (currentMove.getPieceMoved().getColor() == PieceColor.WHITE) {
-                int moveNumber = (i / 2) + 1;
-                displayText = moveNumber + ". " + san;
-                if (i + 1 < history.size()) {
-                    Move blackMove = history.get(i + 1);
-                    displayText += "  " + blackMove.getStandardAlgebraicNotation();
+        List<Move> playedMoves = gameModel.getPlayedMoveSequence();
+        for (int i = 0; i < playedMoves.size(); i++) {
+            Move whiteMove = playedMoves.get(i);
+            if (whiteMove.getPieceMoved().getColor() == PieceColor.WHITE) {
+                Move blackMove = null;
+                if (i + 1 < playedMoves.size()) {
+                    blackMove = playedMoves.get(i + 1);
+                }
+                moveHistoryObservableList.add(new MovePairDisplay((i / 2) + 1, whiteMove, blackMove));
+                if (blackMove != null) {
                     i++;
                 }
             } else {
-                displayText = "1. ... " + san;
+                moveHistoryObservableList.add(new MovePairDisplay((i / 2) + 1, null, whiteMove));
             }
-            moveHistoryObservableList.add(displayText);
         }
-        if (!moveHistoryObservableList.isEmpty()) {
-            moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
+        updateMoveHistoryViewHighlightAndScroll();
+    }
+
+    private static class MoveListCell extends ListCell<MovePairDisplay> {
+        private final HBox hbox = new HBox(5);
+        private final Label moveNumberLabel = new Label();
+        private final Label whiteMoveTextNode = new Label();
+        private final Label blackMoveTextNode = new Label();
+
+        private final ChessController controller;
+
+        public MoveListCell(ChessController controller) {
+            super();
+            this.controller = controller;
+
+            whiteMoveTextNode.getStyleClass().add("history-move-text");
+            blackMoveTextNode.getStyleClass().add("history-move-text");
+            moveNumberLabel.getStyleClass().add("history-move-number");
+
+            whiteMoveTextNode.setOnMouseClicked(event -> {
+                MovePairDisplay item = getItem();
+                if (item != null && item.getWhiteMove() != null && event.getButton() == MouseButton.PRIMARY) {
+                    int targetPlyIndex = controller.gameModel.getPlayedMoveSequence().indexOf(item.getWhiteMove());
+                    if (targetPlyIndex != -1 && targetPlyIndex != controller.currentPlyPointer) {
+                        controller.jumpToMoveState(targetPlyIndex);
+                    } else if (targetPlyIndex == controller.currentPlyPointer) {
+                        getListView().getSelectionModel().clearSelection();
+                    }
+                    event.consume();
+                }
+            });
+
+            blackMoveTextNode.setOnMouseClicked(event -> {
+                MovePairDisplay item = getItem();
+                if (item != null && item.getBlackMove() != null && event.getButton() == MouseButton.PRIMARY) {
+                    int targetPlyIndex = controller.gameModel.getPlayedMoveSequence().indexOf(item.getBlackMove());
+                    if (targetPlyIndex != -1 && targetPlyIndex != controller.currentPlyPointer) {
+                        controller.jumpToMoveState(targetPlyIndex);
+                    } else if (targetPlyIndex == controller.currentPlyPointer) {
+                        getListView().getSelectionModel().clearSelection();
+                    }
+                    event.consume();
+                }
+            });
+
+            hbox.getChildren().addAll(moveNumberLabel, whiteMoveTextNode, blackMoveTextNode);
+            hbox.setAlignment(Pos.CENTER_LEFT);
+        }
+
+        @Override
+        protected void updateItem(MovePairDisplay item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                setText(null);
+                setGraphic(null);
+                whiteMoveTextNode.getStyleClass().remove("current-move-text");
+                blackMoveTextNode.getStyleClass().remove("current-move-text");
+            } else {
+                moveNumberLabel.setText(item.getMoveNumber() + ". ");
+
+                String whiteSan = (item.getWhiteMove() != null && item.getWhiteMove().getStandardAlgebraicNotation() != null) ? item.getWhiteMove().getStandardAlgebraicNotation() : (item.getWhiteMove() != null ? "???" : "");
+                whiteMoveTextNode.setText(whiteSan);
+                whiteMoveTextNode.setVisible(item.getWhiteMove() != null);
+
+                String blackSan = (item.getBlackMove() != null && item.getBlackMove().getStandardAlgebraicNotation() != null) ? item.getBlackMove().getStandardAlgebraicNotation() : (item.getBlackMove() != null ? "???" : "");
+                blackMoveTextNode.setText(item.getBlackMove() != null ? "  " + blackSan : "");
+                blackMoveTextNode.setVisible(item.getBlackMove() != null);
+
+                setGraphic(hbox);
+
+                whiteMoveTextNode.getStyleClass().remove("current-move-text");
+                blackMoveTextNode.getStyleClass().remove("current-move-text");
+
+                Move currentActualModelMove = (controller.currentPlyPointer >= 0 && controller.currentPlyPointer < controller.gameModel.getPlayedMoveSequence().size()) ? controller.gameModel.getPlayedMoveSequence().get(controller.currentPlyPointer) : null;
+
+                if (item.getWhiteMove() != null && item.getWhiteMove() == currentActualModelMove) {
+                    whiteMoveTextNode.getStyleClass().add("current-move-text");
+                }
+                if (item.getBlackMove() != null && item.getBlackMove() == currentActualModelMove) {
+                    blackMoveTextNode.getStyleClass().add("current-move-text");
+                }
+            }
         }
     }
 }

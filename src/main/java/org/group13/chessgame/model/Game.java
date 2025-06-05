@@ -3,17 +3,15 @@ package org.group13.chessgame.model;
 import org.group13.chessgame.pgn.PgnHeaders;
 import org.group13.chessgame.utils.NotationUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Game {
     private static final ZobristTable zobristTable = new ZobristTable();
     private final Board board;
     private final Player whitePlayer;
     private final Player blackPlayer;
-    private final List<Move> moveHistory;
+    private final Deque<Move> undoStack;
+    private final Deque<Move> redoStack;
     private final List<Piece> piecesCapturedByWhite;
     private final List<Piece> piecesCapturedByBlack;
     // threefold repetition
@@ -32,7 +30,8 @@ public class Game {
         this.whitePlayer = new Player(PieceColor.WHITE);
         this.blackPlayer = new Player(PieceColor.BLACK);
         this.pgnHeaders = new PgnHeaders();
-        this.moveHistory = new ArrayList<>();
+        this.undoStack = new ArrayDeque<>();
+        this.redoStack = new ArrayDeque<>();
         this.positionHistoryCount = new HashMap<>();
         this.piecesCapturedByWhite = new ArrayList<>();
         this.piecesCapturedByBlack = new ArrayList<>();
@@ -43,7 +42,8 @@ public class Game {
         this.currentPlayer = whitePlayer;
         this.gameState = GameState.ACTIVE;
         this.pgnHeaders = new PgnHeaders();
-        this.moveHistory.clear();
+        undoStack.clear();
+        redoStack.clear();
         this.halfMoveClock = 0;
         this.currentPositionHash = calculateBoardHash();
         this.positionHistoryCount.clear();
@@ -67,14 +67,10 @@ public class Game {
     }
 
     public Move getLastMove() {
-        if (moveHistory.isEmpty()) {
+        if (undoStack.isEmpty()) {
             return null;
         }
-        return moveHistory.getLast();
-    }
-
-    public List<Move> getMoveHistory() {
-        return moveHistory;
+        return undoStack.peek();
     }
 
     public void setupBoardForTest(List<PiecePlacement> placements, PieceColor playerWhoseTurnItIs) {
@@ -146,11 +142,11 @@ public class Game {
         return (kingColor == PieceColor.WHITE) ? whiteKingSquare : blackKingSquare;
     }
 
-    public boolean makeMove(Move moveFromUI) {
+    public Move makeMove(Move moveFromUI) {
         Piece pieceToMoveFromUI = moveFromUI.getStartSquare().getPiece();
         if (pieceToMoveFromUI == null || pieceToMoveFromUI.getColor() != currentPlayer.getColor()) {
             System.err.println("Nước đi không hợp lệ: Không phải quân của bạn hoặc ô trống.");
-            return false;
+            return null;
         }
 
         List<Move> legalMoves = getAllLegalMovesForPlayer(currentPlayer.getColor());
@@ -174,7 +170,7 @@ public class Game {
             System.err.println("Nước đi không hợp lệ: " + moveFromUI + " không có trong danh sách nước đi hợp lệ hoặc thông tin không khớp.");
             System.err.println("Legal moves for " + currentPlayer.getColor() + ":");
             for (Move m : legalMoves) System.err.println("  " + m.toString());
-            return false;
+            return null;
         }
 
         actualMoveToMake.setHalfMoveClockBeforeMove(this.halfMoveClock);
@@ -264,12 +260,14 @@ public class Game {
         }
 
         actualMoveToMake.setHashGenerated(this.currentPositionHash);
-        moveHistory.add(actualMoveToMake);
+        undoStack.push(actualMoveToMake);
+        redoStack.clear();
 
         int count = this.positionHistoryCount.getOrDefault(this.currentPositionHash, 0) + 1;
         this.positionHistoryCount.put(this.currentPositionHash, count);
 
         switchPlayer();
+        updateKingSquares();
 
         updateGameState();
 
@@ -281,7 +279,7 @@ public class Game {
         }
         actualMoveToMake.setStandardAlgebraicNotation(sanBasic + suffix);
 
-        return true;
+        return actualMoveToMake;
     }
 
     private long getCastlingHash() {
@@ -372,8 +370,7 @@ public class Game {
 
     public List<Move> getAllLegalMovesForPlayer(PieceColor playerColor) {
         List<Move> legalMoves = new ArrayList<>();
-        if (gameState == GameState.BLACK_WINS_CHECKMATE || gameState == GameState.WHITE_WINS_CHECKMATE || gameState == GameState.STALEMATE_DRAW || gameState == GameState.FIFTY_MOVE_DRAW || gameState == GameState.THREEFOLD_REPETITION_DRAW || gameState == GameState.INSUFFICIENT_MATERIAL_DRAW ||
-            gameState == GameState.BLACK_SURRENDERS || gameState == GameState.WHITE_SURRENDERS) {
+        if (gameState == GameState.BLACK_WINS_CHECKMATE || gameState == GameState.WHITE_WINS_CHECKMATE || gameState == GameState.STALEMATE_DRAW || gameState == GameState.FIFTY_MOVE_DRAW || gameState == GameState.THREEFOLD_REPETITION_DRAW || gameState == GameState.INSUFFICIENT_MATERIAL_DRAW || gameState == GameState.BLACK_SURRENDERS || gameState == GameState.WHITE_SURRENDERS) {
             return legalMoves;
         }
 
@@ -575,47 +572,79 @@ public class Game {
         return null;
     }
 
-    public boolean undoLastMove() {
-        if (moveHistory.isEmpty()) {
-            return false;
+    public Move undo() {
+        if (undoStack.isEmpty()) {
+            return null;
         }
-        Move lastMove = moveHistory.removeLast();
+        Move moveToUndo = undoStack.pop();
+        redoStack.push(moveToUndo);
 
-        Piece piecePutBackOnBoard = lastMove.getPieceCaptured();
-        if (piecePutBackOnBoard != null) {
-            if (piecePutBackOnBoard.getColor() == PieceColor.BLACK) {
-                piecesCapturedByWhite.remove(piecePutBackOnBoard);
-            } else {
-                piecesCapturedByBlack.remove(piecePutBackOnBoard);
-            }
-        }
-
-        long hashThatWasGenerated = lastMove.getHashGenerated();
+        long hashThatWasGenerated = this.currentPositionHash;
         int oldCount = this.positionHistoryCount.getOrDefault(hashThatWasGenerated, 0);
         if (oldCount > 0) {
             this.positionHistoryCount.put(hashThatWasGenerated, oldCount - 1);
             if (this.positionHistoryCount.get(hashThatWasGenerated) == 0) {
                 this.positionHistoryCount.remove(hashThatWasGenerated);
             }
-        } else {
-            System.err.println("Zobrist history error during undo for hash: " + hashThatWasGenerated);
         }
 
-        board.undoMove(lastMove);
+        board.undoMove(moveToUndo);
 
-        this.halfMoveClock = lastMove.getHalfMoveClockBeforeMove();
-
-        updateKingSquares();
+        this.halfMoveClock = moveToUndo.getHalfMoveClockBeforeMove();
 
         switchPlayer();
+        updateKingSquares();
 
+        this.currentPositionHash = calculateBoardHash();
 
-        // removeLastPositionFromHistory();
-        currentPositionHash = calculateBoardHash();
+        updateGameState();
+        return moveToUndo;
+    }
+
+    public Move redo() {
+        if (redoStack.isEmpty()) {
+            return null;
+        }
+        Move moveToRedo = redoStack.pop();
+
+        board.applyMove(moveToRedo);
+
+        Piece pieceThatMoved = moveToRedo.getPieceMoved();
+
+        if (pieceThatMoved.getType() == PieceType.PAWN || moveToRedo.getPieceCaptured() != null) {
+            this.resetHalfMoveClock();
+        } else {
+            this.incrementHalfMoveClock();
+        }
+
+        undoStack.push(moveToRedo);
+
+        switchPlayer();
+        updateKingSquares();
+
+        this.currentPositionHash = calculateBoardHash();
+
+        int count = this.positionHistoryCount.getOrDefault(this.currentPositionHash, 0) + 1;
+        this.positionHistoryCount.put(this.currentPositionHash, count);
 
         updateGameState();
 
-        return true;
+        return moveToRedo;
+    }
+
+    public boolean canUndo() {
+        return !undoStack.isEmpty();
+    }
+
+    public boolean canRedo() {
+        return !redoStack.isEmpty();
+    }
+
+    public List<Move> getPlayedMoveSequence() {
+        List<Move> sequence = new ArrayList<>(undoStack);
+        java.util.Collections.reverse(sequence);
+        sequence.addAll(redoStack);
+        return sequence;
     }
 
     public void resetHalfMoveClock() {
@@ -718,7 +747,7 @@ public class Game {
         }
 
         if (matchedMove != null) {
-            return makeMove(matchedMove);
+            return makeMove(matchedMove) != null;
         } else {
             System.err.println("PgnParser Error: Could not find a legal move in model from " + NotationUtils.squareToAlgebraic(fromSquareModel) + " to " + NotationUtils.squareToAlgebraic(toSquareModel) + (promotionTypeModel != null ? "=" + promotionTypeModel : "") + " for player " + currentPlayer.getColor() + ". Current FEN (model): " + getBoard().getFen());
             System.err.println("Legal moves available in model for " + currentPlayer.getColor() + ":");
@@ -755,7 +784,7 @@ public class Game {
 
         fenBuilder.append(" ").append(this.halfMoveClock);
 
-        int fullMoves = (this.moveHistory.size() / 2) + 1;
+        int fullMoves = (undoStack.size() / 2) + 1;
         fenBuilder.append(" ").append(fullMoves);
 
         return fenBuilder.toString();
@@ -770,8 +799,7 @@ public class Game {
     }
 
     public enum GameState {
-        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW,
-        WHITE_SURRENDERS, BLACK_SURRENDERS
+        ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW, WHITE_SURRENDERS, BLACK_SURRENDERS
     }
 
     public static class PiecePlacement {

@@ -57,7 +57,7 @@ public class PgnParser {
                 boolean moveApplied = loadedGameModel.makeMoveFromSquares(fromSquareModel, toSquareModel, promotionTypeModel);
 
                 if (!moveApplied) {
-                    throw new PgnParseException("Failed to apply move " + libFrom + "-" + libTo + (promotionTypeModel != null ? "=" + promotionTypeModel : "") + " to game model. Move number approx: " + (loadedGameModel.getMoveHistory().size() / 2 + 1) + ". FEN: " + loadedGameModel.getFen());
+                    throw new PgnParseException("Failed to apply move " + libFrom + "-" + libTo + (promotionTypeModel != null ? "=" + promotionTypeModel : "") + " to game model. Move number approx: " + (loadedGameModel.getPlayedMoveSequence().size() / 2 + 1) + ". FEN: " + loadedGameModel.getFen());
                 }
             }
         } finally {
