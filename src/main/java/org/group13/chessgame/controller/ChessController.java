@@ -921,8 +921,8 @@ public class ChessController {
 
             whiteMoveTextNode.setOnMouseClicked(event -> {
                 MovePairDisplay item = getItem();
-                if (item != null && item.getWhiteMove() != null && event.getButton() == MouseButton.PRIMARY) {
-                    int targetPlyIndex = controller.gameModel.getPlayedMoveSequence().indexOf(item.getWhiteMove());
+                if (item != null && item.whiteMove() != null && event.getButton() == MouseButton.PRIMARY) {
+                    int targetPlyIndex = controller.gameModel.getPlayedMoveSequence().indexOf(item.whiteMove());
                     if (targetPlyIndex != -1 && targetPlyIndex != controller.currentPlyPointer) {
                         controller.jumpToMoveState(targetPlyIndex);
                     } else if (targetPlyIndex == controller.currentPlyPointer) {
@@ -934,8 +934,8 @@ public class ChessController {
 
             blackMoveTextNode.setOnMouseClicked(event -> {
                 MovePairDisplay item = getItem();
-                if (item != null && item.getBlackMove() != null && event.getButton() == MouseButton.PRIMARY) {
-                    int targetPlyIndex = controller.gameModel.getPlayedMoveSequence().indexOf(item.getBlackMove());
+                if (item != null && item.blackMove() != null && event.getButton() == MouseButton.PRIMARY) {
+                    int targetPlyIndex = controller.gameModel.getPlayedMoveSequence().indexOf(item.blackMove());
                     if (targetPlyIndex != -1 && targetPlyIndex != controller.currentPlyPointer) {
                         controller.jumpToMoveState(targetPlyIndex);
                     } else if (targetPlyIndex == controller.currentPlyPointer) {
@@ -958,15 +958,15 @@ public class ChessController {
                 whiteMoveTextNode.getStyleClass().remove("current-move-text");
                 blackMoveTextNode.getStyleClass().remove("current-move-text");
             } else {
-                moveNumberLabel.setText(item.getMoveNumber() + ". ");
+                moveNumberLabel.setText(item.moveNumber() + ". ");
 
-                String whiteSan = (item.getWhiteMove() != null && item.getWhiteMove().getStandardAlgebraicNotation() != null) ? item.getWhiteMove().getStandardAlgebraicNotation() : (item.getWhiteMove() != null ? "???" : "");
+                String whiteSan = (item.whiteMove() != null && item.whiteMove().getStandardAlgebraicNotation() != null) ? item.whiteMove().getStandardAlgebraicNotation() : (item.whiteMove() != null ? "???" : "");
                 whiteMoveTextNode.setText(whiteSan);
-                whiteMoveTextNode.setVisible(item.getWhiteMove() != null);
+                whiteMoveTextNode.setVisible(item.whiteMove() != null);
 
-                String blackSan = (item.getBlackMove() != null && item.getBlackMove().getStandardAlgebraicNotation() != null) ? item.getBlackMove().getStandardAlgebraicNotation() : (item.getBlackMove() != null ? "???" : "");
-                blackMoveTextNode.setText(item.getBlackMove() != null ? "  " + blackSan : "");
-                blackMoveTextNode.setVisible(item.getBlackMove() != null);
+                String blackSan = (item.blackMove() != null && item.blackMove().getStandardAlgebraicNotation() != null) ? item.blackMove().getStandardAlgebraicNotation() : (item.blackMove() != null ? "???" : "");
+                blackMoveTextNode.setText(item.blackMove() != null ? "  " + blackSan : "");
+                blackMoveTextNode.setVisible(item.blackMove() != null);
 
                 setGraphic(hbox);
 
@@ -975,10 +975,10 @@ public class ChessController {
 
                 Move currentActualModelMove = (controller.currentPlyPointer >= 0 && controller.currentPlyPointer < controller.gameModel.getPlayedMoveSequence().size()) ? controller.gameModel.getPlayedMoveSequence().get(controller.currentPlyPointer) : null;
 
-                if (item.getWhiteMove() != null && item.getWhiteMove() == currentActualModelMove) {
+                if (item.whiteMove() != null && item.whiteMove() == currentActualModelMove) {
                     whiteMoveTextNode.getStyleClass().add("current-move-text");
                 }
-                if (item.getBlackMove() != null && item.getBlackMove() == currentActualModelMove) {
+                if (item.blackMove() != null && item.blackMove() == currentActualModelMove) {
                     blackMoveTextNode.getStyleClass().add("current-move-text");
                 }
             }

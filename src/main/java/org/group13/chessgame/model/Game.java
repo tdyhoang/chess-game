@@ -301,16 +301,16 @@ public class Game {
         }
         PieceColor opponentColor = currentPlayer.getColor();
         boolean inCheck = isKingInCheck(opponentColor);
-        List<Move> legalMovesForCurrentPlayer = getAllLegalMovesForPlayer(opponentColor);
+        List<Move> legalMoves = getAllLegalMovesForPlayer(opponentColor);
 
         if (inCheck) {
-            if (legalMovesForCurrentPlayer.isEmpty()) {
+            if (legalMoves.isEmpty()) {
                 gameState = (opponentColor == PieceColor.WHITE) ? GameState.BLACK_WINS_CHECKMATE : GameState.WHITE_WINS_CHECKMATE;
             } else {
                 gameState = GameState.CHECK;
             }
         } else {
-            if (legalMovesForCurrentPlayer.isEmpty()) {
+            if (legalMoves.isEmpty()) {
                 gameState = GameState.STALEMATE_DRAW;
             } else {
                 gameState = GameState.ACTIVE;
@@ -597,6 +597,8 @@ public class Game {
 
         this.currentPositionHash = calculateBoardHash();
 
+        this.gameState = GameState.ACTIVE;
+
         updateGameState();
         return moveToUndo;
     }
@@ -626,6 +628,8 @@ public class Game {
 
         int count = this.positionHistoryCount.getOrDefault(this.currentPositionHash, 0) + 1;
         this.positionHistoryCount.put(this.currentPositionHash, count);
+
+        this.gameState = GameState.ACTIVE;
 
         updateGameState();
 
