@@ -802,6 +802,10 @@ public class Game {
         this.pgnHeaders = (headers != null) ? headers : new PgnHeaders();
     }
 
+    public Deque<Move> getUndoStack() {
+        return undoStack;
+    }
+
     public enum GameState {
         ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW, WHITE_SURRENDERS, BLACK_SURRENDERS
     }

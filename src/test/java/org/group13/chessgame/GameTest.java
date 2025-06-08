@@ -147,7 +147,7 @@ public class GameTest {
             Optional<Move> bishopMoveToF6 = findMove(whiteMoves, 3, 4, 2, 5);
             assertTrue(bishopMoveToF6.isPresent(), "Bishop e5 should be able to move to f6.");
 
-            assertTrue(game.makeMove(bishopMoveToF6.get()));
+            assertNotNull(game.makeMove(bishopMoveToF6.get()));
 
             assertEquals(PieceColor.BLACK, game.getCurrentPlayer().getColor(), "It should be Black's turn.");
             assertTrue(game.isKingInCheck(PieceColor.BLACK), "Black King should be in discovered check by Rook on e4.");
@@ -251,15 +251,15 @@ public class GameTest {
         @DisplayName("Fool's Mate (Checkmate)")
         void foolsMate() {
             game.initializeGame();
-            assertTrue(game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 5, 5, 5).get())); // 1. f2-f3
-            assertTrue(game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 4, 3, 4).get())); // 1... e7-e5
-            assertTrue(game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 6, 4, 6).get())); // 2. g2-g4
+            assertNotNull(game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 5, 5, 5).get())); // 1. f2-f3
+            assertNotNull(game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 4, 3, 4).get())); // 1... e7-e5
+            assertNotNull(game.makeMove(findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 6, 4, 6).get())); // 2. g2-g4
 
             List<Move> blackMoves = game.getAllLegalMovesForPlayer(PieceColor.BLACK);
             Optional<Move> qh4 = findMove(blackMoves, 0, 3, 4, 7);
             assertTrue(qh4.isPresent(), "Black Queen should be able to move to h4.");
 
-            assertTrue(game.makeMove(qh4.get())); // 2... Qd8-h4#
+            assertNotNull(game.makeMove(qh4.get())); // 2... Qd8-h4#
 
             assertEquals(Game.GameState.BLACK_WINS_CHECKMATE, game.getGameState());
             assertTrue(game.getAllLegalMovesForPlayer(PieceColor.WHITE).isEmpty(), "White should have no legal moves after checkmate.");
@@ -280,7 +280,7 @@ public class GameTest {
             Optional<Move> whiteQueenMoveToC7 = findMove(whiteMoves, 1, 3, 1, 2);
             assertTrue(whiteQueenMoveToC7.isPresent(), "White Queen should be able to move from d7 to c7.");
 
-            assertTrue(game.makeMove(whiteQueenMoveToC7.get()));
+            assertNotNull(game.makeMove(whiteQueenMoveToC7.get()));
 
             assertEquals(PieceColor.BLACK, game.getCurrentPlayer().getColor(), "It should be Black's turn.");
             assertFalse(game.isKingInCheck(PieceColor.BLACK), "Black King should NOT be in check for stalemate.");
@@ -298,7 +298,7 @@ public class GameTest {
             game.setupBoardForTest(List.of(new Game.PiecePlacement(7, 4, new King(PieceColor.WHITE)), new Game.PiecePlacement(0, 0, new Rook(PieceColor.WHITE)), new Game.PiecePlacement(0, 6, new King(PieceColor.BLACK)), new Game.PiecePlacement(1, 5, new Pawn(PieceColor.BLACK)), new Game.PiecePlacement(1, 6, new Pawn(PieceColor.BLACK)), new Game.PiecePlacement(1, 7, new Pawn(PieceColor.BLACK))), PieceColor.WHITE);
 
             Move ra8e8 = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 0, 0, 0, 4).orElseThrow(() -> new AssertionError("Move Ra8-e8 not found."));
-            assertTrue(game.makeMove(ra8e8));
+            assertNotNull(game.makeMove(ra8e8));
 
             assertEquals(Game.GameState.WHITE_WINS_CHECKMATE, game.getGameState());
             assertTrue(game.getAllLegalMovesForPlayer(PieceColor.BLACK).isEmpty());
@@ -311,7 +311,7 @@ public class GameTest {
             game.setupBoardForTest(List.of(new Game.PiecePlacement(7, 2, new King(PieceColor.WHITE)), new Game.PiecePlacement(6, 2, new Queen(PieceColor.WHITE)), new Game.PiecePlacement(7, 0, new King(PieceColor.BLACK))), PieceColor.WHITE);
 
             Move qc2b2 = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 2, 6, 1).orElseThrow(() -> new AssertionError("Move Qc2-b2 not found."));
-            assertTrue(game.makeMove(qc2b2));
+            assertNotNull(game.makeMove(qc2b2));
 
             assertEquals(Game.GameState.WHITE_WINS_CHECKMATE, game.getGameState());
         }
@@ -348,7 +348,7 @@ public class GameTest {
             assertEquals(board.getSquare(7, 7), castling.getRookStartSquareForCastling(), "Rook should start at h1");
             assertEquals(board.getSquare(7, 5), castling.getRookEndSquareForCastling(), "Rook should end at f1");
 
-            assertTrue(game.makeMove(castling));
+            assertNotNull(game.makeMove(castling));
             assertSame(PieceType.KING, board.getPiece(7, 6).getType(), "King should be on g1 after O-O.");
             assertSame(PieceType.ROOK, board.getPiece(7, 5).getType(), "Rook should be on f1 after O-O.");
             assertTrue(board.getPiece(7, 6).hasMoved(), "King should be marked as moved after O-O.");
@@ -371,7 +371,7 @@ public class GameTest {
             assertEquals(board.getSquare(7, 3), castling.getRookEndSquareForCastling(), "Rook should end at d1");
 
 
-            assertTrue(game.makeMove(castling));
+            assertNotNull(game.makeMove(castling));
             assertSame(PieceType.KING, board.getPiece(7, 2).getType(), "King should be on c1 after O-O-O.");
             assertSame(PieceType.ROOK, board.getPiece(7, 3).getType(), "Rook should be on d1 after O-O-O.");
             assertTrue(board.getPiece(7, 2).hasMoved());
@@ -464,9 +464,9 @@ public class GameTest {
             assertFalse(originalKing.hasMoved());
             assertFalse(originalRook.hasMoved());
 
-            assertTrue(game.makeMove(ooMove));
+            assertNotNull(game.makeMove(ooMove));
 
-            game.undoLastMove();
+            game.undo();
 
             assertSame(originalKing, board.getPiece(7, 4), "King should be back on e1.");
             assertSame(originalRook, board.getPiece(7, 7), "Rook should be back on h1.");
@@ -526,9 +526,9 @@ public class GameTest {
             assertFalse(originalKing.hasMoved());
             assertFalse(originalRook.hasMoved());
 
-            assertTrue(game.makeMove(oooMove));
+            assertNotNull(game.makeMove(oooMove));
 
-            assertTrue(game.undoLastMove(), "Undo last move should be successful.");
+            assertNotNull(game.undo(), "Undo last move should be successful.");
 
             assertSame(originalKing, board.getPiece(7, 4), "King should be back on e1.");
             assertSame(originalRook, board.getPiece(7, 0), "Rook should be back on a1.");
@@ -550,7 +550,7 @@ public class GameTest {
             Optional<Move> ooMove = blackMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 6).findFirst();
             assertTrue(ooMove.isPresent(), "Black Kingside Castling (O-O) should be a legal move.");
 
-            assertTrue(game.makeMove(ooMove.get()));
+            assertNotNull(game.makeMove(ooMove.get()));
             assertSame(PieceType.KING, board.getPiece(0, 6).getType());
             assertSame(PieceType.ROOK, board.getPiece(0, 5).getType());
         }
@@ -565,7 +565,7 @@ public class GameTest {
             Optional<Move> oooMove = blackMoves.stream().filter(Move::isCastlingMove).filter(m -> m.getEndSquare().getCol() == 2).findFirst();
             assertTrue(oooMove.isPresent(), "Black Queenside Castling (O-O-O) should be a legal move.");
 
-            assertTrue(game.makeMove(oooMove.get()));
+            assertNotNull(game.makeMove(oooMove.get()));
             assertSame(PieceType.KING, board.getPiece(0, 2).getType());
             assertSame(PieceType.ROOK, board.getPiece(0, 3).getType());
         }
@@ -584,7 +584,7 @@ public class GameTest {
             game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7)), PieceColor.BLACK);
 
             Move blackPawnMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).orElseThrow(() -> new AssertionError("Black pawn c7-c5 move not found"));
-            assertTrue(game.makeMove(blackPawnMove));
+            assertNotNull(game.makeMove(blackPawnMove));
 
             assertSame(PieceColor.WHITE, game.getCurrentPlayer().getColor());
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
@@ -600,7 +600,7 @@ public class GameTest {
             assertEquals(board.getSquare(3, 2), epMove.getEnPassantCaptureSquare(), "En passant capture square should be c5.");
 
 
-            assertTrue(game.makeMove(epMove));
+            assertNotNull(game.makeMove(epMove));
             assertSame(whitePawnD5, board.getPiece(2, 2), "White pawn should be at c6 after e.p.");
             assertNull(board.getPiece(3, 3), "d5 should be empty.");
             assertNull(board.getPiece(3, 2), "c5 (black pawn's original square after 2-step) should be empty after e.p. capture.");
@@ -619,13 +619,13 @@ public class GameTest {
             game.setupBoardForTest(placements, PieceColor.BLACK);
 
             Move blackPawnMove1 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).get(); // c5
-            assertTrue(game.makeMove(blackPawnMove1));
+            assertNotNull(game.makeMove(blackPawnMove1));
 
             Move whiteIntermediateMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 7, 5, 7).get(); // h3
-            assertTrue(game.makeMove(whiteIntermediateMove));
+            assertNotNull(game.makeMove(whiteIntermediateMove));
 
             Move blackIntermediateMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 0, 2, 0).get(); // a6
-            assertTrue(game.makeMove(blackIntermediateMove));
+            assertNotNull(game.makeMove(blackIntermediateMove));
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
             Optional<Move> enPassantMove = whiteMoves.stream().filter(Move::isEnPassantMove).filter(m -> m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3).findFirst();
@@ -641,7 +641,7 @@ public class GameTest {
             game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(2, 2, blackPawnC6)), PieceColor.BLACK);
 
             Move blackPawnMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 2, 2, 3, 2).get(); // c5
-            assertTrue(game.makeMove(blackPawnMove));
+            assertNotNull(game.makeMove(blackPawnMove));
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
             Optional<Move> enPassantMove = whiteMoves.stream().filter(Move::isEnPassantMove).filter(m -> m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3).findFirst();
@@ -656,13 +656,13 @@ public class GameTest {
             game.setupBoardForTest(List.of(new Game.PiecePlacement(3, 3, whitePawnD5), new Game.PiecePlacement(1, 2, blackPawnC7)), PieceColor.BLACK);
 
             Move blackPawnMoveToC5 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 2, 3, 2).get();
-            assertTrue(game.makeMove(blackPawnMoveToC5));
+            assertNotNull(game.makeMove(blackPawnMoveToC5));
 
             Move enPassantCapture = game.getAllLegalMovesForPlayer(PieceColor.WHITE).stream().filter(Move::isEnPassantMove).filter(m -> m.getStartSquare().getRow() == 3 && m.getStartSquare().getCol() == 3).findFirst().orElseThrow(() -> new AssertionError("En passant move not found for White."));
 
-            assertTrue(game.makeMove(enPassantCapture));
+            assertNotNull(game.makeMove(enPassantCapture));
 
-            assertTrue(game.undoLastMove(), "Undo en passant capture should be successful.");
+            assertNotNull(game.undo(), "Undo en passant capture should be successful.");
 
             assertSame(whitePawnD5, board.getPiece(3, 3), "White pawn should be back on d5.");
             assertSame(blackPawnC7, board.getPiece(3, 2), "Captured Black pawn should be back on c5.");
@@ -680,7 +680,7 @@ public class GameTest {
             game.setupBoardForTest(List.of(new Game.PiecePlacement(4, 3, blackPawnD4), new Game.PiecePlacement(6, 2, whitePawnC2)), PieceColor.WHITE);
 
             Move whitePawnMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 6, 2, 4, 2).orElseThrow(() -> new AssertionError("White pawn c2-c4 move not found"));
-            assertTrue(game.makeMove(whitePawnMove));
+            assertNotNull(game.makeMove(whitePawnMove));
 
             assertSame(PieceColor.BLACK, game.getCurrentPlayer().getColor());
             List<Move> blackMoves = game.getAllLegalMovesForPlayer(PieceColor.BLACK);
@@ -693,7 +693,7 @@ public class GameTest {
             assertSame(whitePawnC2, epMove.getPieceCaptured(), "Captured piece should be the white pawn from c4.");
             assertEquals(board.getSquare(4, 2), epMove.getEnPassantCaptureSquare(), "En passant capture square should be c4.");
 
-            assertTrue(game.makeMove(epMove));
+            assertNotNull(game.makeMove(epMove));
             assertSame(blackPawnD4, board.getPiece(5, 2), "Black pawn should be at c3 after e.p.");
             assertNull(board.getPiece(4, 3), "d4 should be empty.");
             assertNull(board.getPiece(4, 2), "c4 (white pawn's original square after 2-step) should be empty after e.p. capture.");
@@ -711,13 +711,13 @@ public class GameTest {
             game.setupBoardForTest(placements, PieceColor.BLACK);
 
             Move blackPawnD7D5 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 1, 3, 3, 3).get();
-            assertTrue(game.makeMove(blackPawnD7D5));
+            assertNotNull(game.makeMove(blackPawnD7D5));
 
             Move whiteKingE1E2 = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 7, 4, 6, 4).get();
-            assertTrue(game.makeMove(whiteKingE1E2));
+            assertNotNull(game.makeMove(whiteKingE1E2));
 
             Move blackKingE8E7 = findMove(game.getAllLegalMovesForPlayer(PieceColor.BLACK), 0, 4, 1, 4).get();
-            assertTrue(game.makeMove(blackKingE8E7));
+            assertNotNull(game.makeMove(blackKingE8E7));
 
             List<Move> whiteMoves = game.getAllLegalMovesForPlayer(PieceColor.WHITE);
             boolean enPassantAvailable = whiteMoves.stream().anyMatch(m -> m.isEnPassantMove() && m.getStartSquare().getPiece() == whitePawnE5 && m.getEndSquare().getRow() == 2 && m.getEndSquare().getCol() == 3);
@@ -742,7 +742,7 @@ public class GameTest {
 
             assertTrue(promotionToQueenMove.isPresent(), "Promotion to Queen move a7-a8=Q should be available.");
 
-            assertTrue(game.makeMove(promotionToQueenMove.get()));
+            assertNotNull(game.makeMove(promotionToQueenMove.get()));
 
             Piece pieceAtA8 = board.getPiece(0, 0);
             assertNotNull(pieceAtA8);
@@ -766,7 +766,7 @@ public class GameTest {
             assertTrue(promotionToKnightMove.isPresent(), "Promotion to Knight move b7xc8=N should be available.");
             assertSame(blackRookC8, promotionToKnightMove.get().getPieceCaptured(), "Captured piece should be the black rook.");
 
-            assertTrue(game.makeMove(promotionToKnightMove.get()));
+            assertNotNull(game.makeMove(promotionToKnightMove.get()));
 
             Piece pieceAtC8 = board.getPiece(0, 2);
             assertNotNull(pieceAtC8);
@@ -783,9 +783,9 @@ public class GameTest {
             game.setupBoardForTest(List.of(new Game.PiecePlacement(1, 0, whitePawnA7, true)), PieceColor.WHITE);
 
             Move promotionMove = findPromotionMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 1, 0, 0, 0, PieceType.QUEEN).get();
-            assertTrue(game.makeMove(promotionMove));
+            assertNotNull(game.makeMove(promotionMove));
 
-            assertTrue(game.undoLastMove());
+            assertNotNull(game.undo());
 
             Piece pieceAtA7 = board.getPiece(1, 0);
             assertNotNull(pieceAtA7);
@@ -809,7 +809,7 @@ public class GameTest {
 
             assertTrue(promotionToRookMove.isPresent(), "Promotion to Rook move h2-h1=R should be available.");
 
-            assertTrue(game.makeMove(promotionToRookMove.get()));
+            assertNotNull(game.makeMove(promotionToRookMove.get()));
 
             Piece pieceAtH1 = board.getPiece(7, 7);
             assertNotNull(pieceAtH1);
@@ -880,7 +880,7 @@ public class GameTest {
 
             Move captureMove = findMove(game.getAllLegalMovesForPlayer(PieceColor.WHITE), 5, 2, 3, 3).orElseThrow(() -> new AssertionError("Capture move Nxd5 not found"));
             assertNotNull(captureMove.getPieceCaptured());
-            assertTrue(game.makeMove(captureMove));
+            assertNotNull(game.makeMove(captureMove));
             assertEquals(0, game.getHalfMoveClock(), "Half-move clock should reset to 0 after a capture.");
         }
     }
@@ -952,7 +952,7 @@ public class GameTest {
         private void makeSpecificMove(Game game, int r1, int c1, int r2, int c2) {
             Optional<Move> moveOpt = findMove(game.getAllLegalMovesForPlayer(game.getCurrentPlayer().getColor()), r1, c1, r2, c2);
             assertTrue(moveOpt.isPresent(), String.format("Move %s%d to %s%d not found for %s", (char) ('a' + c1), 8 - r1, (char) ('a' + c2), 8 - r2, game.getCurrentPlayer().getColor()));
-            assertTrue(game.makeMove(moveOpt.get()));
+            assertNotNull(game.makeMove(moveOpt.get()));
         }
 
 
@@ -1057,7 +1057,7 @@ public class GameTest {
             long hashAfterE4 = game.getCurrentPositionHash();
             assertEquals(1, game.getPositionHistoryCount().get(hashAfterE4));
 
-            game.undoLastMove();
+            game.undo();
 
             assertEquals(initialHash, game.getCurrentPositionHash(), "Hash should revert to initial after undo.");
             assertEquals(1, game.getPositionHistoryCount().get(initialHash), "Count for initial hash should be 1 after undo.");

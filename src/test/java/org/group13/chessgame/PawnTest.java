@@ -277,13 +277,15 @@ public class PawnTest {
         void whitePawnEnPassant() {
             Pawn whitePawn = new Pawn(PieceColor.WHITE);
             board.setPiece(3, 3, whitePawn); // d5
+            whitePawn.setHasMoved(true);
 
             Pawn blackPawnOriginal = new Pawn(PieceColor.BLACK);
 
             Square blackPawnEndSquare = board.getSquare(3, 2);
             board.setPiece(blackPawnEndSquare.getRow(), blackPawnEndSquare.getCol(), blackPawnOriginal);
 
-            new Move(new Square(1, 2), blackPawnEndSquare, blackPawnOriginal, false);// c7-c5
+            Move blackLastMove = new Move(new Square(1, 2), blackPawnEndSquare, blackPawnOriginal, false);// c7-c5
+            game.getUndoStack().push(blackLastMove);
 
             List<Move> moves = whitePawn.getPseudoLegalMoves(game, 3, 3);
 
@@ -304,7 +306,8 @@ public class PawnTest {
             Square whitePawnEndSquare = board.getSquare(4, 2);
             board.setPiece(whitePawnEndSquare.getRow(), whitePawnEndSquare.getCol(), whitePawnOriginal);
 
-            new Move(new Square(6, 2), whitePawnEndSquare, whitePawnOriginal, false);// c2-c4
+            Move whiteLastMove = new Move(new Square(6, 2), whitePawnEndSquare, whitePawnOriginal, false);// c2-c4
+            game.getUndoStack().push(whiteLastMove);
 
             List<Move> moves = blackPawn.getPseudoLegalMoves(game, 4, 3);
 
