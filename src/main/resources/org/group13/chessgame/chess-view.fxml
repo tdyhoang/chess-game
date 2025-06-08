@@ -3,41 +3,108 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" prefHeight="700.0" prefWidth="900.0"
-            fx:controller="org.group13.chessgame.controller.ChessController" styleClass="root-pane">
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:id="rootPane"
+            styleClass="root-pane" stylesheets="@../../../css/styles.css"
+            fx:controller="org.group13.chessgame.controller.ChessController">
+    <top>
+        <MenuBar BorderPane.alignment="CENTER">
+            <Menu text="Game">
+                <MenuItem onAction="#handleNewGame" text="New Game"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#handleSaveGame" text="Save Game as PGN..."/>
+                <MenuItem onAction="#handleLoadGame" text="Load Game from PGN..."/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#handleSurrender" text="Resign"/>
+                <!--                <MenuItem onAction="#handleOfferDraw" text="Offer Draw" />-->
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#handleExit" text="Exit"/>
+            </Menu>
+            <Menu text="Edit">
+                <MenuItem fx:id="undoMenuItem" disable="true" onAction="#handleUndoMove"
+                          text="Undo"/>
+                <MenuItem fx:id="redoMenuItem" disable="true" onAction="#handleRedoMove"
+                          text="Redo"/>
+            </Menu>
+            <Menu text="View">
+                <MenuItem onAction="#handleFlipBoard" text="Flip Board"/>
+            </Menu>
+        </MenuBar>
+    </top>
     <center>
-        <GridPane fx:id="boardGridPane" alignment="CENTER" styleClass="board-grid-pane">
-        </GridPane>
+        <VBox alignment="CENTER" spacing="5" style="-fx-padding: 5;">
+            <HBox fx:id="blackPlayerArea" alignment="CENTER_LEFT" prefHeight="35.0" maxWidth="600" spacing="10.0">
+                <Label fx:id="blackPlayerNameLabel" styleClass="player-name-label" text="Black"/>
+                <FlowPane fx:id="capturedByBlackArea" hgap="2" vgap="2" HBox.hgrow="ALWAYS"/>
+            </HBox>
+
+            <GridPane fx:id="boardGridPane" alignment="CENTER" styleClass="chess-board" VBox.vgrow="ALWAYS"/>
+
+            <HBox fx:id="whitePlayerArea" alignment="CENTER_LEFT" prefHeight="35.0" maxWidth="600" spacing="10.0">
+                <Label fx:id="whitePlayerNameLabel" styleClass="player-name-label" text="White"/>
+                <FlowPane fx:id="capturedByWhiteArea" hgap="2" vgap="2" HBox.hgrow="ALWAYS"/>
+            </HBox>
+        </VBox>
     </center>
     <right>
-        <VBox fx:id="controlPanel" alignment="TOP_CENTER" prefWidth="200.0" spacing="10"
-              styleClass="control-panel">
+        <VBox fx:id="rightPanel" prefWidth="280.0" minWidth="240" spacing="10" styleClass="side-panel">
             <padding>
-                <Insets top="20" right="10" bottom="10" left="10"/>
+                <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
-            <Label fx:id="turnLabel" text="White to move" styleClass="turn-label"/>
-            <Button fx:id="newGameButton" text="New Game" onAction="#handleNewGame" prefWidth="150"
-                    styleClass="game-button, new-game-button"/>
-            <Button fx:id="surrenderButton" text="Surrender" onAction="#handleSurrender" prefWidth="150"
-                    styleClass="game-button surrender-button"/>
-            <Button fx:id="saveGameButton" text="Save Game" onAction="#handleSaveGame" prefWidth="150"/>
-            <Button fx:id="loadGameButton" text="Load Game" onAction="#handleLoadGame" prefWidth="150"/>
-            <Button fx:id="undoMoveButton" text="Undo Last Move" onAction="#handleUndoMove" prefWidth="150"
-                    styleClass="game-button, undo-button"/>
-            <Button fx:id="redoMoveButton" text="Redo Move" onAction="#handleRedoMove" prefWidth="150" disable="true"/>
-            <Button fx:id="flipBoardButton" text="Flip Board" onAction="#handleFlipBoard" prefWidth="150"/>
-            <Label fx:id="statusLabel" styleClass="status-label"/>
+            <VBox alignment="CENTER" styleClass="status-box">
+                <Label fx:id="turnLabel" styleClass="turn-label"/>
+                <Label fx:id="statusLabel" styleClass="status-label"/>
+            </VBox>
 
-            <Label text="Captured by White:"/>
-            <FlowPane fx:id="capturedByWhitePane" prefWrapLength="180.0" hgap="2" vgap="2"
-                      style="-fx-border-color: gray; -fx-padding: 5; -fx-min-height: 50;"/>
-            <Label text="Captured by Black:"/>
-            <FlowPane fx:id="capturedByBlackPane" prefWrapLength="180.0" hgap="2" vgap="2"
-                      style="-fx-border-color: gray; -fx-padding: 5; -fx-min-height: 50;"/>
+            <GridPane styleClass="main-control-grid" hgap="8" vgap="8">
+                <columnConstraints>
+                    <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES"/>
+                    <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES"/>
+                </columnConstraints>
+                <Button fx:id="undoMoveButton" onAction="#handleUndoMove" text="Undo" maxWidth="Infinity"
+                        GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <Button fx:id="redoMoveButton" onAction="#handleRedoMove" text="Redo" maxWidth="Infinity"
+                        GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
-            <Label text="Move History:" styleClass="move-history-title"/>
-            <ListView fx:id="moveHistoryListView" prefHeight="200.0" styleClass="move-history-list"/>
+                <!--                <Button fx:id="offerDrawButton" onAction="#handleOfferDraw" text="Offer Draw" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1"/>-->
+                <Button fx:id="surrenderButton" onAction="#handleSurrender" text="Resign" maxWidth="Infinity"
+                        GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="resign-button"/>
+            </GridPane>
 
+            <TabPane fx:id="infoTabPane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+                <Tab text="Move History">
+                    <ListView fx:id="moveHistoryListView"/>
+                </Tab>
+                <Tab text="Game Info">
+                    <TitledPane animated="false" text="PGN Headers" collapsible="false">
+                        <GridPane hgap="5.0" vgap="5.0">
+                            <columnConstraints>
+                                <ColumnConstraints hgrow="NEVER" minWidth="60.0"/>
+                                <ColumnConstraints hgrow="ALWAYS"/>
+                            </columnConstraints>
+                            <Label text="White:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                            <TextField fx:id="whitePlayerField" text="White Player" GridPane.rowIndex="0"
+                                       GridPane.columnIndex="1"/>
+                            <Label text="Black:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                            <TextField fx:id="blackPlayerField" text="Black Player" GridPane.rowIndex="1"
+                                       GridPane.columnIndex="1"/>
+                            <Label text="Event:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                            <TextField fx:id="eventField" text="Casual Game" GridPane.rowIndex="2"
+                                       GridPane.columnIndex="1"/>
+                            <Label text="Site:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                            <TextField fx:id="siteField" text="Local" GridPane.rowIndex="3"
+                                       GridPane.columnIndex="1"/>
+                            <Label text="Date:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                            <DatePicker fx:id="datePicker" prefWidth="150.0" GridPane.rowIndex="4"
+                                        GridPane.columnIndex="1"/>
+                            <Label text="Result:" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                            <Label fx:id="resultLabel" text="*" style="-fx-font-weight: bold;"
+                                   GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+                        </GridPane>
+                    </TitledPane>
+                </Tab>
+            </TabPane>
+
+            <Button fx:id="flipBoardButton" onAction="#handleFlipBoard" text="Flip Board" maxWidth="Infinity"/>
         </VBox>
     </right>
 </BorderPane>

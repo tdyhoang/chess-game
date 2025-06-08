@@ -25,6 +25,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import org.group13.chessgame.model.*;
+import org.group13.chessgame.pgn.PgnHeaders;
 import org.group13.chessgame.utils.PgnFormatter;
 import org.group13.chessgame.utils.PgnParseException;
 import org.group13.chessgame.utils.PgnParser;
@@ -35,6 +36,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URL;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class ChessController {
@@ -52,24 +55,56 @@ public class ChessController {
     private int currentPlyPointer = -1;
     @FXML
     private BorderPane rootPane;
+
+    @FXML
+    private MenuItem undoMenuItem;
+    @FXML
+    private MenuItem redoMenuItem;
+
+    @FXML
+    private HBox blackPlayerArea;
+    @FXML
+    private Label blackPlayerNameLabel;
+    @FXML
+    private FlowPane capturedByBlackArea;
+    @FXML
+    private HBox whitePlayerArea;
+    @FXML
+    private Label whitePlayerNameLabel;
+    @FXML
+    private FlowPane capturedByWhiteArea;
+
     @FXML
     private GridPane boardGridPane;
+
     @FXML
     private Label turnLabel;
     @FXML
     private Label statusLabel;
     @FXML
+    private ListView<MovePairDisplay> moveHistoryListView;
+    @FXML
     private Button undoMoveButton;
     @FXML
     private Button redoMoveButton;
     @FXML
-    private FlowPane capturedByWhitePane;
-    @FXML
-    private FlowPane capturedByBlackPane;
-    @FXML
-    private ListView<MovePairDisplay> moveHistoryListView;
+    private Button flipBoardButton;
     @FXML
     private Button surrenderButton;
+
+    @FXML
+    private TextField whitePlayerField;
+    @FXML
+    private TextField blackPlayerField;
+    @FXML
+    private TextField eventField;
+    @FXML
+    private TextField siteField;
+    @FXML
+    private DatePicker datePicker;
+    @FXML
+    private Label resultLabel;
+
     private Game gameModel;
     private StackPane[][] squarePanes;
     private Square selectedSquare = null;
@@ -85,6 +120,7 @@ public class ChessController {
         setupMoveHistoryCellFactory();
         initializeBoardGrid();
         loadSounds();
+        setupPgnHeaderListeners();
         startNewGame();
     }
 
@@ -105,7 +141,6 @@ public class ChessController {
                     backgroundRect.getStyleClass().add("dark-square-background");
                 }
                 squarePane.getChildren().add(backgroundRect);
-                squarePane.getStyleClass().add("chess-square-pane");
 
                 Rectangle hoverOverlay = new Rectangle(SQUARE_SIZE, SQUARE_SIZE);
                 hoverOverlay.setMouseTransparent(true);
@@ -286,6 +321,39 @@ public class ChessController {
         moveHistoryListView.setCellFactory(listView -> new MoveListCell(this));
     }
 
+    private void setupPgnHeaderListeners() {
+        whitePlayerField.textProperty().addListener((obs, oldText, newText) -> {
+            if (gameModel != null && gameModel.getPgnHeaders() != null) {
+                gameModel.getPgnHeaders().setWhite(newText);
+            }
+        });
+
+        blackPlayerField.textProperty().addListener((obs, oldText, newText) -> {
+            if (gameModel != null && gameModel.getPgnHeaders() != null) {
+                gameModel.getPgnHeaders().setBlack(newText);
+            }
+        });
+
+        eventField.textProperty().addListener((obs, oldText, newText) -> {
+            if (gameModel != null && gameModel.getPgnHeaders() != null) {
+                gameModel.getPgnHeaders().setEvent(newText);
+            }
+        });
+
+        siteField.textProperty().addListener((obs, oldText, newText) -> {
+            if (gameModel != null && gameModel.getPgnHeaders() != null) {
+                gameModel.getPgnHeaders().setSite(newText);
+            }
+        });
+
+        datePicker.valueProperty().addListener((obs, oldDate, newDate) -> {
+            if (gameModel != null && gameModel.getPgnHeaders() != null && newDate != null) {
+                String pgnDate = newDate.format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+                gameModel.getPgnHeaders().setDate(pgnDate);
+            }
+        });
+    }
+
     private void startNewGame() {
         gameModel.initializeGame();
         clearSelectionAndHighlights();
@@ -301,6 +369,7 @@ public class ChessController {
         surrenderButton.setDisable(false);
         boardGridPane.setMouseTransparent(false);
         updateCapturedPiecesView();
+        updatePgnHeaderFields(gameModel.getPgnHeaders());
     }
 
     private void refreshBoardView() {
@@ -653,6 +722,7 @@ public class ChessController {
             default -> "";
         };
         statusLabel.setText(status);
+        resultLabel.setText(getPgnResult(gameModel.getGameState()));
         if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -704,7 +774,10 @@ public class ChessController {
 
     private void updateUndoRedoButtonStates() {
         undoMoveButton.setDisable(!gameModel.canUndo());
+        undoMenuItem.setDisable(!gameModel.canUndo());
+
         redoMoveButton.setDisable(!gameModel.canRedo());
+        redoMenuItem.setDisable(!gameModel.canRedo());
     }
 
     @FXML
@@ -746,25 +819,25 @@ public class ChessController {
     }
 
     private void updateCapturedPiecesView() {
-        capturedByWhitePane.getChildren().clear();
-        capturedByBlackPane.getChildren().clear();
+        capturedByWhiteArea.getChildren().clear();
+        capturedByBlackArea.getChildren().clear();
 
         Comparator<Piece> pieceComparator = Comparator.comparingInt((Piece p) -> getPieceValue(p.getType())).reversed().thenComparing(p -> p.getType().toString());
 
         List<Piece> whiteCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.WHITE));
-        populateCapturedPiecesPane(pieceComparator, whiteCaptures, capturedByWhitePane);
+        populateCapturedPiecesPane(pieceComparator, whiteCaptures, capturedByWhiteArea);
 
         List<Piece> blackCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.BLACK));
-        populateCapturedPiecesPane(pieceComparator, blackCaptures, capturedByBlackPane);
+        populateCapturedPiecesPane(pieceComparator, blackCaptures, capturedByBlackArea);
     }
 
     private void populateCapturedPiecesPane(Comparator<Piece> comparator, List<Piece> capturedList, FlowPane targetPane) {
         capturedList.sort(comparator);
         for (Piece captured : capturedList) {
             ImageView imgView = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(captured.getImagePath()))));
-            imgView.getStyleClass().add("captured-piece-image");
             imgView.setFitHeight(SQUARE_SIZE * 0.35);
             imgView.setPreserveRatio(true);
+            Tooltip.install(imgView, new Tooltip(captured.getColor() + " " + captured.getType()));
             targetPane.getChildren().add(imgView);
         }
     }
@@ -796,6 +869,8 @@ public class ChessController {
 
         if (file != null) {
             try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+                PgnHeaders headers = getCurrentHeadersFromFields();
+                headers.setResult(getPgnResult(gameModel.getGameState()));
                 String pgnContent = PgnFormatter.formatGame(gameModel.getPgnHeaders(), gameModel.getPlayedMoveSequence(), gameModel.getGameState());
                 writer.print(pgnContent);
                 updateStatusLabel("Game saved as PGN: " + file.getName());
@@ -836,12 +911,51 @@ public class ChessController {
                 currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
                 rebuildMoveHistoryView();
                 updateStatusLabel("Game loaded from PGN: " + file.getName());
+                updatePgnHeaderFields(gameModel.getPgnHeaders());
             } catch (IOException | PgnParseException e) {
                 e.printStackTrace();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private void updatePgnHeaderFields(PgnHeaders headers) {
+        if (headers == null) {
+            whitePlayerField.setText("White Player");
+            blackPlayerField.setText("Black Player");
+            eventField.setText("Casual Game");
+            siteField.setText("Local");
+            datePicker.setValue(LocalDate.now());
+            resultLabel.setText("*");
+        } else {
+            whitePlayerField.setText(headers.getWhite());
+            blackPlayerField.setText(headers.getBlack());
+            eventField.setText(headers.getEvent());
+            siteField.setText(headers.getSite());
+            try {
+                datePicker.setValue(LocalDate.parse(headers.getDate(), DateTimeFormatter.ofPattern("yyyy.MM.dd")));
+            } catch (Exception e) {
+                datePicker.setValue(LocalDate.now());
+                System.err.println("Could not parse PGN date: " + headers.getDate());
+            }
+            resultLabel.setText(headers.getResult());
+        }
+    }
+
+    private PgnHeaders getCurrentHeadersFromFields() {
+        PgnHeaders headers = new PgnHeaders();
+        headers.setWhite(whitePlayerField.getText());
+        headers.setBlack(blackPlayerField.getText());
+        headers.setEvent(eventField.getText());
+        headers.setSite(siteField.getText());
+        if (datePicker.getValue() != null) {
+            headers.setDate(datePicker.getValue().format(DateTimeFormatter.ofPattern("yyyy.MM.dd")));
+        } else {
+            headers.setDate("????.??.??");
+        }
+        headers.setResult(resultLabel.getText());
+        return headers;
     }
 
     private void jumpToMoveState(int targetPly) {
@@ -901,6 +1015,19 @@ public class ChessController {
             }
         }
         updateMoveHistoryViewHighlightAndScroll();
+    }
+
+    @FXML
+    private void handleExit() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Exit Game");
+        alert.setHeaderText("You are about to exit the game.");
+        alert.setContentText("Are you sure you want to exit?");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            Platform.exit();
+        }
     }
 
     private static class MoveListCell extends ListCell<MovePairDisplay> {
@@ -965,7 +1092,7 @@ public class ChessController {
                 whiteMoveTextNode.setVisible(item.whiteMove() != null);
 
                 String blackSan = (item.blackMove() != null && item.blackMove().getStandardAlgebraicNotation() != null) ? item.blackMove().getStandardAlgebraicNotation() : (item.blackMove() != null ? "???" : "");
-                blackMoveTextNode.setText(item.blackMove() != null ? "  " + blackSan : "");
+                blackMoveTextNode.setText(item.blackMove() != null ? blackSan : "");
                 blackMoveTextNode.setVisible(item.blackMove() != null);
 
                 setGraphic(hbox);

@@ -17,7 +17,7 @@ public record MovePairDisplay(int moveNumber, Move whiteMove, Move blackMove) {
         }
 
         if (blackMove != null && blackMove.getStandardAlgebraicNotation() != null) {
-            sb.append("  ").append(blackMove.getStandardAlgebraicNotation());
+            sb.append(blackMove.getStandardAlgebraicNotation());
         } else if (blackMove != null) {
             sb.append("  ").append("???");
         }
