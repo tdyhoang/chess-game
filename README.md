@@ -1,7 +1,8 @@
 ## How to Run
 1. Ensure you have Java 11 (or newer) installed.
-2. Download the `ChessGame-v1.0.0.jar` file from the assets below.
-3. Execute the application using the following command: `java -jar PerfectChessGame-v1.0.0.jar`
+2. Download the `.jar` file (e.g., `ChessGame-v1.0.0.jar`) from [**Releases**](https://github.com/tdyhoang/chess-game/releases/latest).
+3. Execute the application using the following command: `java -jar <name-of-the-downloaded-jar-file>.jar`
+4. *Example:* `java -jar ChessGame-v1.0.0.jar`
 
 ## TODO:
 
