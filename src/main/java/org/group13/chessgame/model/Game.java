@@ -806,6 +806,10 @@ public class Game {
         return undoStack;
     }
 
+    public Deque<Move> getRedoStack() {
+        return redoStack;
+    }
+
     public enum GameState {
         ACTIVE, CHECK, WHITE_WINS_CHECKMATE, BLACK_WINS_CHECKMATE, STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW, WHITE_SURRENDERS, BLACK_SURRENDERS
     }

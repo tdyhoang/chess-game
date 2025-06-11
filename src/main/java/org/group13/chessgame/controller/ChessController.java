@@ -554,6 +554,14 @@ public class ChessController {
     }
 
     private void performMoveLogic(Move move) {
+        if (gameModel.canRedo()) {
+            Move nextMoveInRedoStack = gameModel.getRedoStack().peek();
+
+            if (move.isEquivalent(nextMoveInRedoStack)) {
+                handleRedoMove();
+                return;
+            }
+        }
         Move executedMove = gameModel.makeMove(move);
         if (executedMove != null) {
             currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
@@ -982,6 +990,8 @@ public class ChessController {
         updateTurnLabel();
         updateStatusBasedOnGameState();
         updateUndoRedoButtonStates();
+        surrenderButton.setDisable(false);
+        boardGridPane.setMouseTransparent(false);
         updateCapturedPiecesView();
         updateMoveHistoryViewHighlightAndScroll();
     }

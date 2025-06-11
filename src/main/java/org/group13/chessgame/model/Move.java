@@ -171,6 +171,23 @@ public class Move {
         result = 31 * result + (isEnPassantMove ? 1 : 0);
         return result;
     }
+    /**
+     * Checks if this move is equivalent to another move based on player's intent
+     * (start, end, and promotion). Ignores special flags like castling or en passant,
+     * which are determined by game logic, not raw user input.
+     *
+     * @param other The other Move object to compare against.
+     * @return true if the moves are equivalent from a UI perspective.
+     */
+    public boolean isEquivalent(Move other) {
+        if (other == null) return false;
+
+        return startSquare.getRow() == other.startSquare.getRow() &&
+                startSquare.getCol() == other.startSquare.getCol() &&
+                endSquare.getRow() == other.endSquare.getRow() &&
+                endSquare.getCol() == other.endSquare.getCol() &&
+                promotionPieceType == other.promotionPieceType;
+    }
 
     public String getStandardAlgebraicNotation() {
         return standardAlgebraicNotation;
