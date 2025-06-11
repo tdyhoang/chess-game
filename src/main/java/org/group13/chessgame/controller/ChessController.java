@@ -428,10 +428,101 @@ public class ChessController {
 
     @FXML
     private void handleNewGame() {
-        startNewGame();
+        Optional<GameSetupResult> result = showGameSetupDialog();
+        result.ifPresent(setup -> startNewGame(setup.mode, setup.playerColor, setup.difficulty));
+    }
+
+    private Optional<GameSetupResult> showGameSetupDialog() {
+        Dialog<GameSetupResult> dialog = new Dialog<>();
+        dialog.setTitle("New Game Setup");
+        dialog.setHeaderText("Choose your game settings");
+
+        ButtonType startButtonType = new ButtonType("Start Game", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(startButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        ToggleGroup modeGroup = new ToggleGroup();
+        RadioButton pvpRadio = new RadioButton("Player vs Player");
+        pvpRadio.setToggleGroup(modeGroup);
+
+        RadioButton pvcRadio = new RadioButton("Player vs Computer");
+        pvcRadio.setToggleGroup(modeGroup);
+
+        RadioButton aRadio = new RadioButton("Analysis Mode");
+        aRadio.setToggleGroup(modeGroup);
+        aRadio.setSelected(true);
+
+        Label colorLabel = new Label("Play as:");
+        ToggleGroup colorGroup = new ToggleGroup();
+        RadioButton whiteRadio = new RadioButton("White");
+        whiteRadio.setToggleGroup(colorGroup);
+        whiteRadio.setSelected(true);
+        RadioButton blackRadio = new RadioButton("Black");
+        blackRadio.setToggleGroup(colorGroup);
+        HBox colorBox = new HBox(10, whiteRadio, blackRadio);
+
+        Label difficultyLabel = new Label("Difficulty:");
+        ComboBox<Difficulty> difficultyComboBox = new ComboBox<>();
+        difficultyComboBox.getItems().setAll(Difficulty.values());
+        difficultyComboBox.setValue(Difficulty.MEDIUM);
+
+        colorLabel.setDisable(true);
+        colorBox.setDisable(true);
+        difficultyLabel.setDisable(true);
+        difficultyComboBox.setDisable(true);
+
+        modeGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
+            boolean isPvc = (newVal == pvcRadio);
+            boolean isPvp = (newVal == pvpRadio);
+            boolean isAnalysis = (newVal == aRadio);
+            colorLabel.setDisable(isAnalysis);
+            colorBox.setDisable(isAnalysis);
+            difficultyLabel.setDisable(!isPvc);
+            difficultyComboBox.setDisable(!isPvc);
+        });
+
+        grid.add(new Label("Game Mode:"), 0, 0);
+        grid.add(pvpRadio, 1, 0);
+        grid.add(pvcRadio, 2, 0);
+        grid.add(aRadio, 3, 0);
+
+        grid.add(colorLabel, 0, 1);
+        grid.add(colorBox, 1, 1, 2, 1);
+
+        grid.add(difficultyLabel, 0, 2);
+        grid.add(difficultyComboBox, 1, 2, 2, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == startButtonType) {
+                GameMode selectedMode;
+                if(pvpRadio.isSelected()) selectedMode = GameMode.PLAYER_VS_PLAYER;
+                else if(pvcRadio.isSelected()) selectedMode = GameMode.PLAYER_VS_COMPUTER;
+                else selectedMode = GameMode.ANALYSIS;
+                PieceColor selectedColor = whiteRadio.isSelected() ? PieceColor.WHITE : PieceColor.BLACK;
+                Difficulty selectedDifficulty = difficultyComboBox.getValue();
+                return new GameSetupResult(selectedMode, selectedColor, selectedDifficulty);
+            }
+            return null;
+        });
+
+        return dialog.showAndWait();
     }
 
     private void startNewGame() {
+        startNewGame(GameMode.ANALYSIS, PieceColor.WHITE, Difficulty.MEDIUM);
+    }
+
+    private void startNewGame(GameMode mode, PieceColor playerSide, Difficulty difficulty) {
+        this.currentMode = mode;
+        this.playerColor = playerSide;
+        this.currentDifficulty = difficulty;
+
         gameModel.initializeGame();
         clearSelectionAndHighlights();
         currentPlyPointer = -1;
