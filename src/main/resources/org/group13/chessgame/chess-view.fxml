@@ -3,9 +3,8 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:id="rootPane"
-            styleClass="root-pane" stylesheets="@../../../css/styles.css"
-            fx:controller="org.group13.chessgame.controller.ChessController">
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:id="rootPane" styleClass="root-pane"
+            stylesheets="@../../../css/styles.css" fx:controller="org.group13.chessgame.controller.ChessController">
     <top>
         <MenuBar BorderPane.alignment="CENTER">
             <Menu text="Game">
@@ -14,16 +13,14 @@
                 <MenuItem onAction="#handleSaveGame" text="Save Game as PGN..."/>
                 <MenuItem onAction="#handleLoadGame" text="Load Game from PGN..."/>
                 <SeparatorMenuItem/>
-                <MenuItem onAction="#handleSurrender" text="Resign"/>
-                <MenuItem onAction="#handleOfferDraw" text="Offer Draw"/>
+                <MenuItem fx:id="surrenderMenuItem" onAction="#handleSurrender" text="Resign"/>
+                <MenuItem fx:id="offerDrawMenuItem" onAction="#handleOfferDraw" text="Offer Draw"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#handleExit" text="Exit"/>
             </Menu>
             <Menu text="Edit">
-                <MenuItem fx:id="undoMenuItem" disable="true" onAction="#handleUndoMove"
-                          text="Undo"/>
-                <MenuItem fx:id="redoMenuItem" disable="true" onAction="#handleRedoMove"
-                          text="Redo"/>
+                <MenuItem fx:id="undoMenuItem" onAction="#handleUndoMove" text="Undo"/>
+                <MenuItem fx:id="redoMenuItem" onAction="#handleRedoMove" text="Redo"/>
             </Menu>
             <Menu text="View">
                 <MenuItem onAction="#handleFlipBoard" text="Flip Board"/>
@@ -92,14 +89,13 @@
                             <TextField fx:id="eventField" text="Casual Game" GridPane.rowIndex="2"
                                        GridPane.columnIndex="1"/>
                             <Label text="Site:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                            <TextField fx:id="siteField" text="Local" GridPane.rowIndex="3"
-                                       GridPane.columnIndex="1"/>
+                            <TextField fx:id="siteField" text="Local" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
                             <Label text="Date:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
                             <DatePicker fx:id="datePicker" prefWidth="150.0" GridPane.rowIndex="4"
                                         GridPane.columnIndex="1"/>
                             <Label text="Result:" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-                            <Label fx:id="resultLabel" text="*" style="-fx-font-weight: bold;"
-                                   GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+                            <Label fx:id="resultLabel" text="*" style="-fx-font-weight: bold;" GridPane.rowIndex="5"
+                                   GridPane.columnIndex="1"/>
                         </GridPane>
                     </TitledPane>
                 </Tab>
