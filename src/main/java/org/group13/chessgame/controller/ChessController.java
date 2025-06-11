@@ -61,10 +61,6 @@ public class ChessController {
     @FXML
     private MenuItem redoMenuItem;
     @FXML
-    private MenuItem surrenderMenuItem;
-    @FXML
-    private MenuItem offerDrawMenuItem;
-    @FXML
     private HBox blackPlayerArea;
     @FXML
     private Label blackPlayerNameLabel;
@@ -115,14 +111,14 @@ public class ChessController {
     private List<Move> availableMovesForSelectedPiece = new ArrayList<>();
     private boolean boardIsFlipped = false;
 
-    private final GameMode currentMode = GameMode.ANALYSIS;
-    private final PieceColor playerColor = PieceColor.WHITE;
-    private final Difficulty currentDifficulty = Difficulty.MEDIUM;
+    private GameMode currentMode = GameMode.ANALYSIS;
+    private PieceColor playerColor = PieceColor.WHITE;
+    private Difficulty currentDifficulty = Difficulty.MEDIUM;
 
     private MediaPlayer moveSoundPlayer, captureSoundPlayer, checkSoundPlayer, endGameSoundPlayer, castleSoundPlayer, promoteSoundPlayer;
 
     @FXML
-    public void initialize() {
+    public void initialize() throws IOException {
         this.gameModel = new Game();
         this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
         initializeBoardGrid();
@@ -394,26 +390,17 @@ public class ChessController {
     }
 
     private void updateUndoRedoButtonStates() {
-        boolean isPlayerTurn = currentMode == GameMode.ANALYSIS || gameModel.getCurrentPlayer().getColor() == playerColor;
+        undoMoveButton.setDisable(!gameModel.canUndo());
+        undoMenuItem.setDisable(!gameModel.canUndo());
 
-        undoMoveButton.setDisable(!gameModel.canUndo() || !isPlayerTurn);
-        undoMenuItem.setDisable(!gameModel.canUndo() || !isPlayerTurn);
-
-        redoMoveButton.setDisable(!gameModel.canRedo() || !isPlayerTurn);
-        redoMenuItem.setDisable(!gameModel.canRedo() || !isPlayerTurn);
+        redoMoveButton.setDisable(!gameModel.canRedo());
+        redoMenuItem.setDisable(!gameModel.canRedo());
     }
 
     private void updateActionButtonsState() {
         boolean isGameOver = isGameOver();
-        boolean isPlayerTurn = currentMode == GameMode.ANALYSIS || gameModel.getCurrentPlayer().getColor() == playerColor;
-
-        offerDrawMenuItem.setDisable(isGameOver || !isPlayerTurn);
-        offerDrawButton.setDisable(isGameOver || !isPlayerTurn);
-
-        surrenderMenuItem.setDisable(isGameOver || !isPlayerTurn);
-        surrenderButton.setDisable(isGameOver || !isPlayerTurn);
-
-        moveHistoryListView.setDisable(!isPlayerTurn);
+        offerDrawButton.setDisable(isGameOver);
+        surrenderButton.setDisable(isGameOver);
     }
 
     private void updateCapturedPiecesView() {
