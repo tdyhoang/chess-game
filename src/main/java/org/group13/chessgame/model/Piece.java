@@ -15,6 +15,8 @@ public abstract class Piece {
         setImagePath();
     }
 
+    public abstract List<Move> getPseudoLegalMoves(Game game, int currentRow, int currentCol);
+
     public PieceColor getColor() {
         return color;
     }
@@ -37,21 +39,36 @@ public abstract class Piece {
 
     protected void setImagePath() {
         String colorStr = (color == PieceColor.WHITE) ? "w" : "b";
-        String typeStr = switch (type) {
+        String typeStr = pieceTypeToChar(this.type).toUpperCase();
+        this.imagePath = String.format("/images/piece/%s%s.png", colorStr, typeStr);
+    }
+
+    public static String pieceTypeToChar(PieceType type) {
+        return switch (type) {
             case PAWN -> "P";
             case ROOK -> "R";
             case KNIGHT -> "N";
             case BISHOP -> "B";
             case QUEEN -> "Q";
             case KING -> "K";
+            default -> "";
         };
-        this.imagePath = String.format("/images/piece/%s%s.png", colorStr, typeStr);
     }
 
-    public abstract List<Move> getPseudoLegalMoves(Game game, int currentRow, int currentCol);
+    public static PieceType charToPieceType(char c) {
+        return switch (Character.toUpperCase(c)) {
+            case 'P' -> PieceType.PAWN;
+            case 'R' -> PieceType.ROOK;
+            case 'N' -> PieceType.KNIGHT;
+            case 'B' -> PieceType.BISHOP;
+            case 'Q' -> PieceType.QUEEN;
+            case 'K' -> PieceType.KING;
+            default -> null;
+        };
+    }
 
     @Override
     public String toString() {
-        return color.toString().charAt(0) + type.toString().substring(0, 1);
+        return color.toString().charAt(0) + pieceTypeToChar(type);
     }
 }

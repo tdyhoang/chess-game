@@ -1,24 +1,28 @@
 package org.group13.chessgame.model;
 
+import org.group13.chessgame.utils.NotationUtils;
+
 public class Move {
     private final Square startSquare;
     private final Square endSquare;
     private final Piece pieceMoved;
     private final boolean pieceMovedOriginalHasMoved;
-    private int halfMoveClockBeforeMove;
-    private Square enPassantTargetSquareBeforeMove;
-    private long hashGeneratedByThisMove;
-    // private final Game.GameState gameStateBeforeMove;
+
     private Piece pieceCaptured;
-    private Piece pieceOnRookStartForCastling;
-    private boolean rookOriginalHasMoved;
+    private PieceType promotionPieceType = null;
 
     private boolean isCastlingMove = false;
     private Square rookStartSquareForCastling = null;
     private Square rookEndSquareForCastling = null;
+    private Piece pieceOnRookStartForCastling;
+    private boolean rookOriginalHasMoved;
+
     private boolean isEnPassantMove = false;
     private Square enPassantCaptureSquare = null;
-    private PieceType promotionPieceType = null;
+
+    private int halfMoveClockBeforeMove;
+    private Square enPassantTargetSquareBeforeMove;
+    private long hashGeneratedByThisMove;
     private String standardAlgebraicNotation;
 
     public Move(Square startSquare, Square endSquare, Piece pieceMoved, boolean pieceMovedOriginalHasMoved) {
@@ -26,11 +30,7 @@ public class Move {
         this.endSquare = endSquare;
         this.pieceMoved = pieceMoved;
         this.pieceMovedOriginalHasMoved = pieceMovedOriginalHasMoved;
-        if (endSquare.hasPiece() && !this.isEnPassantMove()) {
-            this.pieceCaptured = endSquare.getPiece();
-        } else {
-            this.pieceCaptured = null;
-        }
+        this.pieceCaptured = endSquare.hasPiece() && !this.isEnPassantMove() ? endSquare.getPiece() : null;
     }
 
     public Move(Square startSquare, Square endSquare, Piece pieceMoved, boolean pieceMovedOriginalHasMoved, PieceType promotionPieceType) {
@@ -147,9 +147,23 @@ public class Move {
         this.enPassantCaptureSquare = enPassantCaptureSquare;
     }
 
+    public String getStandardAlgebraicNotation() {
+        return standardAlgebraicNotation;
+    }
+
+    public void setStandardAlgebraicNotation(String san) {
+        this.standardAlgebraicNotation = san;
+    }
+
     @Override
-    public String toString() { // VD: "e2-e4"
-        return pieceMoved.toString() + "@" + startSquare.toString() + " -> " + endSquare.toString() + (pieceCaptured != null ? "x" + pieceCaptured : "") + (isPromotion() ? "=" + promotionPieceType.toString().charAt(0) : "");
+    public String toString() { // UCI string
+        String start = NotationUtils.squareToAlgebraic(startSquare).toLowerCase();
+        String end = NotationUtils.squareToAlgebraic(endSquare).toLowerCase();
+        String promotion = "";
+        if (isPromotion()) {
+            promotion = Piece.pieceTypeToChar(promotionPieceType).toLowerCase();
+        }
+        return start + end + promotion;
     }
 
     @Override
@@ -171,6 +185,7 @@ public class Move {
         result = 31 * result + (isEnPassantMove ? 1 : 0);
         return result;
     }
+
     /**
      * Checks if this move is equivalent to another move based on player's intent
      * (start, end, and promotion). Ignores special flags like castling or en passant,
@@ -182,18 +197,16 @@ public class Move {
     public boolean isEquivalent(Move other) {
         if (other == null) return false;
 
-        return startSquare.getRow() == other.startSquare.getRow() &&
-                startSquare.getCol() == other.startSquare.getCol() &&
-                endSquare.getRow() == other.endSquare.getRow() &&
-                endSquare.getCol() == other.endSquare.getCol() &&
-                promotionPieceType == other.promotionPieceType;
+        return startSquare.getRow() == other.startSquare.getRow() && startSquare.getCol() == other.startSquare.getCol() && endSquare.getRow() == other.endSquare.getRow() && endSquare.getCol() == other.endSquare.getCol() && promotionPieceType == other.promotionPieceType;
     }
 
-    public String getStandardAlgebraicNotation() {
-        return standardAlgebraicNotation;
-    }
-
-    public void setStandardAlgebraicNotation(String san) {
-        this.standardAlgebraicNotation = san;
+    public String toUciString() {
+        String start = NotationUtils.squareToAlgebraic(startSquare).toLowerCase();
+        String end = NotationUtils.squareToAlgebraic(endSquare).toLowerCase();
+        String promotion = "";
+        if (isPromotion()) {
+            promotion = Piece.pieceTypeToChar(promotionPieceType).toLowerCase();
+        }
+        return start + end + promotion;
     }
 }

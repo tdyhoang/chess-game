@@ -669,7 +669,7 @@ public class GameTest {
             assertNull(board.getPiece(2, 2), "c6 (en passant target square) should be empty.");
 
             assertEquals(PieceColor.WHITE, game.getCurrentPlayer().getColor(), "Should be White's turn again (before the e.p. move).");
-            assertEquals(blackPawnMoveToC5, game.getLastMove(), "Last move in history should be Black's c7-c5.");
+            assertEquals(blackPawnMoveToC5, game.getUndoStack().peek(), "Last move in history should be Black's c7-c5.");
         }
 
         @Test

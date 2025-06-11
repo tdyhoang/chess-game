@@ -15,7 +15,7 @@
                 <MenuItem onAction="#handleLoadGame" text="Load Game from PGN..."/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#handleSurrender" text="Resign"/>
-                <!--                <MenuItem onAction="#handleOfferDraw" text="Offer Draw" />-->
+                <MenuItem onAction="#handleOfferDraw" text="Offer Draw"/>
                 <SeparatorMenuItem/>
                 <MenuItem onAction="#handleExit" text="Exit"/>
             </Menu>
@@ -65,7 +65,8 @@
                 <Button fx:id="redoMoveButton" onAction="#handleRedoMove" text="Redo" maxWidth="Infinity"
                         GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
-                <!--                <Button fx:id="offerDrawButton" onAction="#handleOfferDraw" text="Offer Draw" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1"/>-->
+                <Button fx:id="offerDrawButton" onAction="#handleOfferDraw" text="Offer Draw" maxWidth="Infinity"
+                        GridPane.columnIndex="0" GridPane.rowIndex="1"/>
                 <Button fx:id="surrenderButton" onAction="#handleSurrender" text="Resign" maxWidth="Infinity"
                         GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="resign-button"/>
             </GridPane>

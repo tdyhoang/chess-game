@@ -24,6 +24,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
+import org.group13.chessgame.engine.UciService;
 import org.group13.chessgame.model.*;
 import org.group13.chessgame.pgn.PgnHeaders;
 import org.group13.chessgame.utils.PgnFormatter;
@@ -55,12 +56,10 @@ public class ChessController {
     private int currentPlyPointer = -1;
     @FXML
     private BorderPane rootPane;
-
     @FXML
     private MenuItem undoMenuItem;
     @FXML
     private MenuItem redoMenuItem;
-
     @FXML
     private HBox blackPlayerArea;
     @FXML
@@ -73,10 +72,8 @@ public class ChessController {
     private Label whitePlayerNameLabel;
     @FXML
     private FlowPane capturedByWhiteArea;
-
     @FXML
     private GridPane boardGridPane;
-
     @FXML
     private Label turnLabel;
     @FXML
@@ -90,8 +87,9 @@ public class ChessController {
     @FXML
     private Button flipBoardButton;
     @FXML
+    private Button offerDrawButton;
+    @FXML
     private Button surrenderButton;
-
     @FXML
     private TextField whitePlayerField;
     @FXML
@@ -106,22 +104,43 @@ public class ChessController {
     private Label resultLabel;
 
     private Game gameModel;
+    private UciService uciService;
     private StackPane[][] squarePanes;
+
     private Square selectedSquare = null;
     private List<Move> availableMovesForSelectedPiece = new ArrayList<>();
-    private MediaPlayer moveSoundPlayer, captureSoundPlayer, checkSoundPlayer, endGameSoundPlayer, castleSoundPlayer, promoteSoundPlayer;
     private boolean boardIsFlipped = false;
 
+    private GameMode currentMode = GameMode.ANALYSIS;
+    private PieceColor playerColor = PieceColor.WHITE;
+    private Difficulty currentDifficulty = Difficulty.MEDIUM;
+
+    private MediaPlayer moveSoundPlayer, captureSoundPlayer, checkSoundPlayer, endGameSoundPlayer, castleSoundPlayer, promoteSoundPlayer;
+
     @FXML
-    public void initialize() {
+    public void initialize() throws IOException {
         this.gameModel = new Game();
         this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
-        moveHistoryListView.setItems(moveHistoryObservableList);
-        setupMoveHistoryCellFactory();
         initializeBoardGrid();
         loadSounds();
+
+        uciService = new UciService("engines/stockfish.exe");
+        uciService.startEngine().thenAccept(started -> {
+            if (!started) {
+                Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Could not start chess engine. Player vs Computer mode will be unavailable.").show());
+            }
+        });
+
+        moveHistoryListView.setItems(moveHistoryObservableList);
+        setupMoveHistoryCellFactory();
         setupPgnHeaderListeners();
         startNewGame();
+    }
+
+    public void shutdown() {
+        if (uciService != null) {
+            uciService.stopEngine();
+        }
     }
 
     private void initializeBoardGrid() {
@@ -175,133 +194,7 @@ public class ChessController {
                 squarePanes[row][col] = squarePane;
                 boardGridPane.add(squarePane, col, row);
 
-                squarePane.setOnMouseEntered(event -> {
-                    if (isGameOver()) return;
-
-                    Square currentHoveredModelSquare = getModelSquare(squarePane);
-
-                    boolean showHover = false;
-                    if (selectedSquare != null) {
-                        boolean isAvailableMoveTarget = availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == currentHoveredModelSquare);
-                        if (isAvailableMoveTarget) {
-                            showHover = true;
-                        }
-                    }
-                    if (currentHoveredModelSquare.hasPiece() && currentHoveredModelSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
-                        showHover = true;
-                    }
-
-                    boolean isSelectedOnThisSquare = (squarePane.getChildren().size() > SELECTED_OVERLAY_INDEX && squarePane.getChildren().get(SELECTED_OVERLAY_INDEX).isVisible());
-                    boolean isDragOverOnThisSquare = (squarePane.getChildren().size() > DRAG_OVERLAY_INDEX && squarePane.getChildren().get(DRAG_OVERLAY_INDEX).isVisible());
-
-                    if (showHover && !isSelectedOnThisSquare && !isDragOverOnThisSquare) {
-                        setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, true);
-                    }
-                });
-                squarePane.setOnMouseExited(event -> setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, false));
-
-                pieceImageView.setOnDragDetected(event -> {
-                    if (isGameOver()) return;
-
-                    StackPane sourcePane = (StackPane) pieceImageView.getParent();
-                    setOverlayVisible(sourcePane, HOVER_OVERLAY_INDEX, false);
-
-                    Square dragSourceSquareModel = getModelSquare(sourcePane);
-
-                    if (dragSourceSquareModel.hasPiece() && dragSourceSquareModel.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
-
-                        if (selectedSquare != null && selectedSquare != dragSourceSquareModel) {
-                            clearSelectionAndHighlights();
-                        }
-
-                        selectPiece(dragSourceSquareModel);
-
-                        Dragboard db = pieceImageView.startDragAndDrop(TransferMode.MOVE);
-                        ClipboardContent content = new ClipboardContent();
-                        content.putString(dragSourceSquareModel.getRow() + "," + dragSourceSquareModel.getCol());
-                        db.setContent(content);
-
-                        SnapshotParameters params = new SnapshotParameters();
-                        params.setFill(Color.TRANSPARENT);
-
-                        Image currentPieceImage = pieceImageView.getImage();
-                        if (currentPieceImage != null) {
-                            Image dragViewImage = pieceImageView.snapshot(params, null);
-                            db.setDragView(dragViewImage);
-                            db.setDragViewOffsetX(dragViewImage.getWidth() / 2);
-                            db.setDragViewOffsetY(dragViewImage.getHeight() / 2);
-                        }
-
-                        event.consume();
-                    }
-                });
-
-                squarePane.setOnDragOver(event -> {
-                    if (event.getGestureSource() != squarePane && event.getDragboard().hasString()) {
-                        boolean canDrop = availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == getModelSquare(squarePane));
-
-                        if (canDrop) {
-                            event.acceptTransferModes(TransferMode.MOVE);
-                        }
-                    }
-                    event.consume();
-                });
-
-                squarePane.setOnDragEntered(event -> {
-                    if (event.getGestureSource() != squarePane && event.getDragboard().hasString()) {
-                        if (availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == getModelSquare(squarePane))) {
-                            setOverlayVisible(squarePane, DRAG_OVERLAY_INDEX, true);
-                            setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, false);
-                        }
-                    }
-                    event.consume();
-                });
-
-                squarePane.setOnDragExited(event -> {
-                    setOverlayVisible(squarePane, DRAG_OVERLAY_INDEX, false);
-                    event.consume();
-                });
-
-                squarePane.setOnDragDropped(event -> {
-                    Dragboard db = event.getDragboard();
-                    boolean success = false;
-                    if (db.hasString()) {
-                        String[] sourceCoords = db.getString().split(",");
-                        int sourceModelRow = Integer.parseInt(sourceCoords[0]);
-                        int sourceModelCol = Integer.parseInt(sourceCoords[1]);
-
-                        Square sourceDragModelSquare = gameModel.getBoard().getSquare(sourceModelRow, sourceModelCol);
-
-                        if (selectedSquare == sourceDragModelSquare) {
-                            Optional<Move> chosenMoveOpt = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == getModelSquare(squarePane)).findFirst();
-
-                            if (chosenMoveOpt.isPresent()) {
-                                Move moveToDo = chosenMoveOpt.get();
-                                if (moveToDo.getPieceMoved().getType() == PieceType.PAWN && (moveToDo.getEndSquare().getRow() == 0 || moveToDo.getEndSquare().getRow() == (Board.SIZE - 1))) {
-
-                                    PieceType promotionChoice = askForPromotionType();
-                                    if (promotionChoice == null) {
-                                        clearSelectionAndHighlights();
-                                        event.setDropCompleted(false);
-                                        event.consume();
-                                        return;
-                                    }
-                                    final PieceType finalChoice = promotionChoice;
-                                    moveToDo = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == getModelSquare(squarePane) && m.isPromotion() && m.getPromotionPieceType() == finalChoice).findFirst().orElseThrow(() -> new IllegalStateException("Selected promotion move (DnD) not found."));
-                                }
-
-                                performMoveLogic(moveToDo);
-                                success = true;
-                            }
-                        }
-                    }
-                    event.setDropCompleted(success);
-                    event.consume();
-                    if (!success) {
-                        clearSelectionAndHighlights();
-                    }
-                });
-
+                addDragAndDropHandlers(squarePane, pieceImageView);
                 final int r = row;
                 final int c = col;
                 squarePane.setOnMouseClicked(event -> handleSquareClick(r, c));
@@ -354,24 +247,6 @@ public class ChessController {
         });
     }
 
-    private void startNewGame() {
-        gameModel.initializeGame();
-        clearSelectionAndHighlights();
-        currentPlyPointer = -1;
-        rebuildMoveHistoryView();
-        refreshBoardView();
-        updateTurnLabel();
-        updateStatusLabel("");
-        whiteCapturedPieces.clear();
-        blackCapturedPieces.clear();
-        updateUndoRedoButtonStates();
-        updateMoveHistoryViewHighlightAndScroll();
-        surrenderButton.setDisable(false);
-        boardGridPane.setMouseTransparent(false);
-        updateCapturedPiecesView();
-        updatePgnHeaderFields(gameModel.getPgnHeaders());
-    }
-
     private void refreshBoardView() {
         Board currentBoard = gameModel.getBoard();
         for (int row = 0; row < Board.SIZE; row++) {
@@ -403,20 +278,292 @@ public class ChessController {
         }
     }
 
-    private ImageView getPieceImageViewFromPane(StackPane pane) {
-        for (Node node : pane.getChildren()) {
-            if (node instanceof ImageView) {
-                return (ImageView) node;
+    private void rebuildMoveHistoryView() {
+        moveHistoryObservableList.clear();
+        List<Move> playedMoves = gameModel.getPlayedMoveSequence();
+        for (int i = 0; i < playedMoves.size(); i++) {
+            Move whiteMove = playedMoves.get(i);
+            if (whiteMove.getPieceMoved().getColor() == PieceColor.WHITE) {
+                Move blackMove = null;
+                if (i + 1 < playedMoves.size()) {
+                    blackMove = playedMoves.get(i + 1);
+                }
+                moveHistoryObservableList.add(new MovePairDisplay((i / 2) + 1, whiteMove, blackMove));
+                if (blackMove != null) {
+                    i++;
+                }
+            } else {
+                moveHistoryObservableList.add(new MovePairDisplay((i / 2) + 1, null, whiteMove));
             }
         }
-        System.err.println("Could not find piece ImageView in StackPane for refresh.");
-        ImageView newImageView = new ImageView();
-        pane.getChildren().add(newImageView);
-        return newImageView;
+        updateMoveHistoryViewHighlightAndScroll();
+    }
+
+    private void updateAllUIStates() {
+        refreshBoardView();
+        updateTurnLabel();
+        updateStatusBasedOnGameState();
+        updateUndoRedoButtonStates();
+        updateActionButtonsState();
+        updateCapturedPiecesView();
+        rebuildMoveHistoryView();
+        updatePgnHeaderFieldsFromResult();
+        updateMoveHistoryViewHighlightAndScroll();
+    }
+
+    private void updatePgnHeaderFields(PgnHeaders headers) {
+        if (headers == null) {
+            whitePlayerField.setText("White Player");
+            blackPlayerField.setText("Black Player");
+            eventField.setText("Casual Game");
+            siteField.setText("Local");
+            datePicker.setValue(LocalDate.now());
+            resultLabel.setText("*");
+        } else {
+            whitePlayerField.setText(headers.getWhite());
+            blackPlayerField.setText(headers.getBlack());
+            eventField.setText(headers.getEvent());
+            siteField.setText(headers.getSite());
+            try {
+                datePicker.setValue(LocalDate.parse(headers.getDate(), DateTimeFormatter.ofPattern("yyyy.MM.dd")));
+            } catch (Exception e) {
+                datePicker.setValue(LocalDate.now());
+                System.err.println("Could not parse PGN date: " + headers.getDate());
+            }
+            resultLabel.setText(headers.getResult());
+        }
+    }
+
+    private PgnHeaders getCurrentHeadersFromFields() {
+        PgnHeaders headers = new PgnHeaders();
+        headers.setWhite(whitePlayerField.getText());
+        headers.setBlack(blackPlayerField.getText());
+        headers.setEvent(eventField.getText());
+        headers.setSite(siteField.getText());
+        if (datePicker.getValue() != null) {
+            headers.setDate(datePicker.getValue().format(DateTimeFormatter.ofPattern("yyyy.MM.dd")));
+        } else {
+            headers.setDate("????.??.??");
+        }
+        headers.setResult(resultLabel.getText());
+        return headers;
+    }
+
+    private void updatePgnHeaderFieldsFromResult() {
+        resultLabel.setText(getPgnResult(gameModel.getGameState()));
+    }
+
+    private void updateTurnLabel() {
+        turnLabel.setText(gameModel.getCurrentPlayer().getColor() + " to move");
+    }
+
+    private void updateStatusLabel(String message) {
+        statusLabel.setText(message);
+    }
+
+    private void updateStatusBasedOnGameState() {
+        String status;
+        Game.GameState currentState = gameModel.getGameState();
+        status = switch (currentState) {
+            case CHECK -> gameModel.getCurrentPlayer().getColor() + " is in Check!";
+            case WHITE_WINS_CHECKMATE -> "Checkmate! WHITE wins.";
+            case BLACK_WINS_CHECKMATE -> "Checkmate! BLACK wins.";
+            case WHITE_SURRENDERS -> "BLACK wins by surrender.";
+            case BLACK_SURRENDERS -> "WHITE wins by surrender.";
+            case STALEMATE_DRAW -> "Stalemate! It's a draw.";
+            case FIFTY_MOVE_DRAW -> "Draw by 50-move rule.";
+            case THREEFOLD_REPETITION_DRAW -> "Draw by threefold repetition.";
+            case INSUFFICIENT_MATERIAL_DRAW -> "Draw by insufficient material.";
+            default -> "";
+        };
+        statusLabel.setText(status);
+        resultLabel.setText(getPgnResult(gameModel.getGameState()));
+        if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Game Over");
+                alert.setHeaderText(null);
+                alert.setContentText(status);
+                alert.show();
+            });
+        }
+    }
+
+    private void updateUndoRedoButtonStates() {
+        undoMoveButton.setDisable(!gameModel.canUndo());
+        undoMenuItem.setDisable(!gameModel.canUndo());
+
+        redoMoveButton.setDisable(!gameModel.canRedo());
+        redoMenuItem.setDisable(!gameModel.canRedo());
+    }
+
+    private void updateActionButtonsState() {
+        boolean isGameOver = isGameOver();
+        offerDrawButton.setDisable(isGameOver);
+        surrenderButton.setDisable(isGameOver);
+    }
+
+    private void updateCapturedPiecesView() {
+        capturedByWhiteArea.getChildren().clear();
+        capturedByBlackArea.getChildren().clear();
+
+        Comparator<Piece> pieceComparator = Comparator.comparingInt((Piece p) -> getPieceValue(p.getType())).reversed().thenComparing(p -> p.getType().toString());
+
+        List<Piece> whiteCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.WHITE));
+        populateCapturedPiecesPane(pieceComparator, whiteCaptures, capturedByWhiteArea);
+
+        List<Piece> blackCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.BLACK));
+        populateCapturedPiecesPane(pieceComparator, blackCaptures, capturedByBlackArea);
+    }
+
+    private void updateMoveHistoryViewHighlightAndScroll() {
+        moveHistoryListView.refresh();
+        if (currentPlyPointer >= 0) {
+            int displayIndex = currentPlyPointer / 2;
+            if (displayIndex < moveHistoryObservableList.size()) {
+                javafx.application.Platform.runLater(() -> moveHistoryListView.scrollTo(displayIndex));
+            }
+        }
+    }
+
+    @FXML
+    private void handleNewGame() {
+        startNewGame();
+    }
+
+    private void startNewGame() {
+        gameModel.initializeGame();
+        clearSelectionAndHighlights();
+        currentPlyPointer = -1;
+        updatePgnHeaderFields(gameModel.getPgnHeaders());
+        updateAllUIStates();
+        whiteCapturedPieces.clear();
+        blackCapturedPieces.clear();
+
+        if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor) {
+            requestEngineMove();
+        }
+    }
+
+    @FXML
+    private void handleUndoMove() {
+        clearSelectionAndHighlights();
+        Move undoneMove = gameModel.undo();
+        if (undoneMove != null) {
+            currentPlyPointer--;
+            updateAllUIStates();
+        }
+    }
+
+    @FXML
+    private void handleRedoMove() {
+        clearSelectionAndHighlights();
+        Move redoneMove = gameModel.redo();
+        if (redoneMove != null) {
+            currentPlyPointer++;
+            updateAllUIStates();
+        }
+    }
+
+    @FXML
+    private void handleFlipBoard() {
+        boardIsFlipped = !boardIsFlipped;
+        clearSelectionAndHighlights();
+        refreshBoardView();
+    }
+
+    @FXML
+    private void handleSaveGame() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Game as PGN");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN Files (*.pgn)", "*.pgn"));
+        File file = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
+
+        if (file != null) {
+            try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+                PgnHeaders headers = getCurrentHeadersFromFields();
+                headers.setResult(getPgnResult(gameModel.getGameState()));
+                String pgnContent = PgnFormatter.formatGame(gameModel.getPgnHeaders(), gameModel.getPlayedMoveSequence(), gameModel.getGameState());
+                writer.print(pgnContent);
+                updateStatusLabel("Game saved as PGN: " + file.getName());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @FXML
+    private void handleLoadGame() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Load Game from PGN");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN Files (*.pgn)", "*.pgn"));
+        File file = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
+
+        if (file != null) {
+            try {
+                String pgnString = new String(java.nio.file.Files.readAllBytes(file.toPath()));
+
+                this.gameModel = PgnParser.parsePgn(pgnString);
+                currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
+                updatePgnHeaderFields(gameModel.getPgnHeaders());
+                updateAllUIStates();
+                updateStatusLabel("Game loaded from PGN: " + file.getName());
+            } catch (IOException | PgnParseException e) {
+                e.printStackTrace();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @FXML
+    private void handleExit() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Exit Game");
+        alert.setHeaderText("You are about to exit the game.");
+        alert.setContentText("Are you sure you want to exit?");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            Platform.exit();
+        }
+    }
+
+    @FXML
+    private void handleOfferDraw() {
+    }
+
+    @FXML
+    private void handleSurrender() {
+        if (isGameOver()) {
+            System.out.println("Surrender blocked: Game is already over with state " + gameModel.getGameState());
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirm surrender");
+        confirmation.setHeaderText(null);
+        confirmation.setContentText("Do you really want to surrender?");
+        Optional<ButtonType> result = confirmation.showAndWait();
+
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            PieceColor currentPlayerColor = gameModel.getCurrentPlayer().getColor();
+            String winner = (currentPlayerColor == PieceColor.WHITE) ? "BLACK" : "WHITE";
+            System.out.println("Surrender initiated by " + currentPlayerColor);
+
+            gameModel.surrender();
+
+            updateAllUIStates();
+
+            playSound(endGameSoundPlayer);
+        }
     }
 
     private void handleSquareClick(int viewRow, int viewCol) {
         if (isGameOver()) {
+            return;
+        }
+        if (currentMode != GameMode.ANALYSIS && gameModel.getCurrentPlayer().getColor() != playerColor) {
             return;
         }
 
@@ -447,7 +594,7 @@ public class ChessController {
                 }
 
                 clearSelectionAndHighlights();
-                performMoveAnimation(chosenMove);
+                performMoveAnimation(chosenMove, true);
 
             } else if (clickedBoardSquare.hasPiece() && clickedBoardSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
                 clearSelectionAndHighlights();
@@ -458,49 +605,68 @@ public class ChessController {
         }
     }
 
-    private void selectPiece(Square squareToSelect) {
+    private void performMoveLogic(Move move) {
+        if (gameModel.canRedo()) {
+            Move nextMoveInRedoStack = gameModel.getRedoStack().peek();
+
+            if (move.isEquivalent(nextMoveInRedoStack)) {
+                handleRedoMove();
+                return;
+            }
+        }
+        Move executedMove = gameModel.makeMove(move);
+        if (executedMove != null) {
+            if (currentMode == GameMode.PLAYER_VS_COMPUTER && !isGameOver()) {
+                requestEngineMove();
+            }
+            currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
+            Piece captured = executedMove.getPieceCaptured();
+            if (captured != null) {
+                if (captured.getColor() == PieceColor.BLACK) {
+                    whiteCapturedPieces.add(captured);
+                } else {
+                    blackCapturedPieces.add(captured);
+                }
+            }
+            updateAllUIStates();
+            playMoveSounds(executedMove);
+        } else {
+            updateStatusLabel("Error: Invalid move attempted!");
+            refreshBoardView();
+        }
         clearSelectionAndHighlights();
-        selectedSquare = squareToSelect;
-        List<Move> filteredMoves = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
-        availableMovesForSelectedPiece = new ArrayList<>(filteredMoves);
-        int viewRow = boardIsFlipped ? (Board.SIZE - 1 - squareToSelect.getRow()) : squareToSelect.getRow();
-        int viewCol = boardIsFlipped ? (Board.SIZE - 1 - squareToSelect.getCol()) : squareToSelect.getCol();
-        highlightSelectedSquare(squarePanes[viewRow][viewCol]);
-        highlightAvailableMoves();
     }
 
-    private void loadSounds() {
-        try {
-            moveSoundPlayer = createMediaPlayer("/sound/Move.mp3");
-            captureSoundPlayer = createMediaPlayer("/sound/Capture.mp3");
-            checkSoundPlayer = createMediaPlayer("/sound/Check.mp3");
-            endGameSoundPlayer = createMediaPlayer("/sound/Checkmate.mp3");
-            castleSoundPlayer = createMediaPlayer("/sound/Move.mp3");
-            promoteSoundPlayer = createMediaPlayer("/sound/Confirmation.mp3");
-        } catch (Exception e) {
-            System.err.println("Error loading sounds: " + e.getMessage());
+    private void requestEngineMove() {
+        boardGridPane.setMouseTransparent(true);
+        statusLabel.setText("Computer is thinking...");
+
+        StringBuilder movesString = new StringBuilder();
+        for (Move move : gameModel.getPlayedMoveSequence()) {
+            movesString.append(" ").append(move.toString());
         }
-    }
+        String positionCommand = "position startpos moves" + movesString;
 
-    private MediaPlayer createMediaPlayer(String resourcePath) {
-        URL resourceUrl = getClass().getResource(resourcePath);
-        if (resourceUrl == null) {
-            System.err.println("Cannot find sound resource: " + resourcePath);
+        int moveTime = this.currentDifficulty.getMoveTimeMillis();
+
+        uciService.findBestMove(positionCommand, moveTime).thenAccept(bestMoveUci -> Platform.runLater(() -> {
+            Move moveMade = gameModel.makeMoveFromUCI(bestMoveUci);
+            if (moveMade != null) {
+                performMoveAnimation(moveMade, false);
+            } else {
+                statusLabel.setText("Error: Engine returned an invalid move!");
+                boardGridPane.setMouseTransparent(false);
+            }
+        })).exceptionally(ex -> {
+            Platform.runLater(() -> {
+                statusLabel.setText("Error communicating with engine.");
+                boardGridPane.setMouseTransparent(false);
+            });
             return null;
-        }
-        Media media = new Media(resourceUrl.toExternalForm());
-        return new MediaPlayer(media);
+        });
     }
 
-    private void playSound(MediaPlayer player) {
-        if (player != null) {
-            player.stop();
-            player.seek(player.getStartTime());
-            player.play();
-        }
-    }
-
-    private void performMoveAnimation(Move move) {
+    private void performMoveAnimation(Move move, boolean isPlayerMove) {
         Square startSquareModel = move.getStartSquare();
         Square endSquareModel = move.getEndSquare();
 
@@ -546,46 +712,211 @@ public class ChessController {
 
         tt.setOnFinished(event -> {
             boardGridPane.getChildren().remove(tempAnimatedPiece);
-            performMoveLogic(move);
+            if (isPlayerMove) {
+                performMoveLogic(move);
+            } else {
+                currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
+                Piece captured = move.getPieceCaptured();
+                if (captured != null) {
+                    if (captured.getColor() == PieceColor.BLACK) {
+                        whiteCapturedPieces.add(captured);
+                    } else {
+                        blackCapturedPieces.add(captured);
+                    }
+                }
+                updateAllUIStates();
+                playMoveSounds(move);
+            }
             boardGridPane.setMouseTransparent(false);
         });
 
         tt.play();
     }
 
-    private void performMoveLogic(Move move) {
-        if (gameModel.canRedo()) {
-            Move nextMoveInRedoStack = gameModel.getRedoStack().peek();
+    private void addDragAndDropHandlers(StackPane squarePane, ImageView pieceImageView) {
+        squarePane.setOnMouseEntered(event -> {
+            if (isGameOver()) return;
 
-            if (move.isEquivalent(nextMoveInRedoStack)) {
-                handleRedoMove();
-                return;
-            }
-        }
-        Move executedMove = gameModel.makeMove(move);
-        if (executedMove != null) {
-            currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
-            rebuildMoveHistoryView();
-            refreshBoardView();
-            updateTurnLabel();
-            updateUndoRedoButtonStates();
-            Piece captured = executedMove.getPieceCaptured();
-            if (captured != null) {
-                if (captured.getColor() == PieceColor.BLACK) {
-                    whiteCapturedPieces.add(captured);
-                } else {
-                    blackCapturedPieces.add(captured);
+            Square currentHoveredModelSquare = getModelSquare(squarePane);
+
+            boolean showHover = false;
+            if (selectedSquare != null) {
+                boolean isAvailableMoveTarget = availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == currentHoveredModelSquare);
+                if (isAvailableMoveTarget) {
+                    showHover = true;
                 }
             }
-            updateCapturedPiecesView();
-            updateMoveHistoryViewHighlightAndScroll();
-            playMoveSounds(executedMove);
-            updateStatusBasedOnGameState();
-        } else {
-            updateStatusLabel("Error: Invalid move attempted!");
-            refreshBoardView();
+            if (currentHoveredModelSquare.hasPiece() && currentHoveredModelSquare.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
+                showHover = true;
+            }
+
+            boolean isSelectedOnThisSquare = (squarePane.getChildren().size() > SELECTED_OVERLAY_INDEX && squarePane.getChildren().get(SELECTED_OVERLAY_INDEX).isVisible());
+            boolean isDragOverOnThisSquare = (squarePane.getChildren().size() > DRAG_OVERLAY_INDEX && squarePane.getChildren().get(DRAG_OVERLAY_INDEX).isVisible());
+
+            if (showHover && !isSelectedOnThisSquare && !isDragOverOnThisSquare) {
+                setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, true);
+            }
+        });
+        squarePane.setOnMouseExited(event -> setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, false));
+
+        pieceImageView.setOnDragDetected(event -> {
+            if (isGameOver()) return;
+
+            StackPane sourcePane = (StackPane) pieceImageView.getParent();
+            setOverlayVisible(sourcePane, HOVER_OVERLAY_INDEX, false);
+
+            Square dragSourceSquareModel = getModelSquare(sourcePane);
+
+            if (dragSourceSquareModel.hasPiece() && dragSourceSquareModel.getPiece().getColor() == gameModel.getCurrentPlayer().getColor()) {
+
+                if (selectedSquare != null && selectedSquare != dragSourceSquareModel) {
+                    clearSelectionAndHighlights();
+                }
+
+                selectPiece(dragSourceSquareModel);
+
+                Dragboard db = pieceImageView.startDragAndDrop(TransferMode.MOVE);
+                ClipboardContent content = new ClipboardContent();
+                content.putString(dragSourceSquareModel.getRow() + "," + dragSourceSquareModel.getCol());
+                db.setContent(content);
+
+                SnapshotParameters params = new SnapshotParameters();
+                params.setFill(Color.TRANSPARENT);
+
+                Image currentPieceImage = pieceImageView.getImage();
+                if (currentPieceImage != null) {
+                    Image dragViewImage = pieceImageView.snapshot(params, null);
+                    db.setDragView(dragViewImage);
+                    db.setDragViewOffsetX(dragViewImage.getWidth() / 2);
+                    db.setDragViewOffsetY(dragViewImage.getHeight() / 2);
+                }
+
+                event.consume();
+            }
+        });
+
+        squarePane.setOnDragOver(event -> {
+            if (event.getGestureSource() != squarePane && event.getDragboard().hasString()) {
+                boolean canDrop = availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == getModelSquare(squarePane));
+
+                if (canDrop) {
+                    event.acceptTransferModes(TransferMode.MOVE);
+                }
+            }
+            event.consume();
+        });
+
+        squarePane.setOnDragEntered(event -> {
+            if (event.getGestureSource() != squarePane && event.getDragboard().hasString()) {
+                if (availableMovesForSelectedPiece.stream().anyMatch(m -> m.getEndSquare() == getModelSquare(squarePane))) {
+                    setOverlayVisible(squarePane, DRAG_OVERLAY_INDEX, true);
+                    setOverlayVisible(squarePane, HOVER_OVERLAY_INDEX, false);
+                }
+            }
+            event.consume();
+        });
+
+        squarePane.setOnDragExited(event -> {
+            setOverlayVisible(squarePane, DRAG_OVERLAY_INDEX, false);
+            event.consume();
+        });
+
+        squarePane.setOnDragDropped(event -> {
+            if (currentMode != GameMode.ANALYSIS && gameModel.getCurrentPlayer().getColor() != playerColor) {
+                return;
+            }
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasString()) {
+                String[] sourceCoords = db.getString().split(",");
+                int sourceModelRow = Integer.parseInt(sourceCoords[0]);
+                int sourceModelCol = Integer.parseInt(sourceCoords[1]);
+
+                Square sourceDragModelSquare = gameModel.getBoard().getSquare(sourceModelRow, sourceModelCol);
+
+                if (selectedSquare == sourceDragModelSquare) {
+                    Optional<Move> chosenMoveOpt = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == getModelSquare(squarePane)).findFirst();
+
+                    if (chosenMoveOpt.isPresent()) {
+                        Move moveToDo = chosenMoveOpt.get();
+                        if (moveToDo.getPieceMoved().getType() == PieceType.PAWN && (moveToDo.getEndSquare().getRow() == 0 || moveToDo.getEndSquare().getRow() == (Board.SIZE - 1))) {
+
+                            PieceType promotionChoice = askForPromotionType();
+                            if (promotionChoice == null) {
+                                clearSelectionAndHighlights();
+                                event.setDropCompleted(false);
+                                event.consume();
+                                return;
+                            }
+                            final PieceType finalChoice = promotionChoice;
+                            moveToDo = availableMovesForSelectedPiece.stream().filter(m -> m.getEndSquare() == getModelSquare(squarePane) && m.isPromotion() && m.getPromotionPieceType() == finalChoice).findFirst().orElseThrow(() -> new IllegalStateException("Selected promotion move (DnD) not found."));
+                        }
+
+                        performMoveLogic(moveToDo);
+                        success = true;
+                    }
+                }
+            }
+            event.setDropCompleted(success);
+            event.consume();
+            if (!success) {
+                clearSelectionAndHighlights();
+            }
+        });
+    }
+
+    private ImageView getPieceImageViewFromPane(StackPane pane) {
+        for (Node node : pane.getChildren()) {
+            if (node instanceof ImageView) {
+                return (ImageView) node;
+            }
         }
+        System.err.println("Could not find piece ImageView in StackPane for refresh.");
+        ImageView newImageView = new ImageView();
+        pane.getChildren().add(newImageView);
+        return newImageView;
+    }
+
+    private void selectPiece(Square squareToSelect) {
         clearSelectionAndHighlights();
+        selectedSquare = squareToSelect;
+        List<Move> filteredMoves = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor()).stream().filter(m -> m.getStartSquare() == selectedSquare).toList();
+        availableMovesForSelectedPiece = new ArrayList<>(filteredMoves);
+        int viewRow = boardIsFlipped ? (Board.SIZE - 1 - squareToSelect.getRow()) : squareToSelect.getRow();
+        int viewCol = boardIsFlipped ? (Board.SIZE - 1 - squareToSelect.getCol()) : squareToSelect.getCol();
+        highlightSelectedSquare(squarePanes[viewRow][viewCol]);
+        highlightAvailableMoves();
+    }
+
+    private void loadSounds() {
+        try {
+            moveSoundPlayer = createMediaPlayer("/sound/Move.mp3");
+            captureSoundPlayer = createMediaPlayer("/sound/Capture.mp3");
+            checkSoundPlayer = createMediaPlayer("/sound/Check.mp3");
+            endGameSoundPlayer = createMediaPlayer("/sound/Checkmate.mp3");
+            castleSoundPlayer = createMediaPlayer("/sound/Move.mp3");
+            promoteSoundPlayer = createMediaPlayer("/sound/Confirmation.mp3");
+        } catch (Exception e) {
+            System.err.println("Error loading sounds: " + e.getMessage());
+        }
+    }
+
+    private MediaPlayer createMediaPlayer(String resourcePath) {
+        URL resourceUrl = getClass().getResource(resourcePath);
+        if (resourceUrl == null) {
+            System.err.println("Cannot find sound resource: " + resourcePath);
+            return null;
+        }
+        Media media = new Media(resourceUrl.toExternalForm());
+        return new MediaPlayer(media);
+    }
+
+    private void playSound(MediaPlayer player) {
+        if (player != null) {
+            player.stop();
+            player.seek(player.getStartTime());
+            player.play();
+        }
     }
 
     private void playMoveSounds(Move move) {
@@ -608,7 +939,7 @@ public class ChessController {
     }
 
     private boolean isDrawState(Game.GameState state) {
-        return state == Game.GameState.STALEMATE_DRAW || state == Game.GameState.FIFTY_MOVE_DRAW || state == Game.GameState.THREEFOLD_REPETITION_DRAW || state == Game.GameState.INSUFFICIENT_MATERIAL_DRAW;
+        return state == Game.GameState.STALEMATE_DRAW || state == Game.GameState.FIFTY_MOVE_DRAW || state == Game.GameState.THREEFOLD_REPETITION_DRAW || state == Game.GameState.INSUFFICIENT_MATERIAL_DRAW || state == Game.GameState.DRAW_BY_AGREEMENT;
     }
 
     private PieceType askForPromotionType() {
@@ -706,139 +1037,6 @@ public class ChessController {
         return state != Game.GameState.ACTIVE && state != Game.GameState.CHECK;
     }
 
-    private void updateTurnLabel() {
-        turnLabel.setText(gameModel.getCurrentPlayer().getColor() + " to move");
-    }
-
-    private void updateStatusLabel(String message) {
-        statusLabel.setText(message);
-    }
-
-    private void updateStatusBasedOnGameState() {
-        String status;
-        Game.GameState currentState = gameModel.getGameState();
-        status = switch (currentState) {
-            case CHECK -> gameModel.getCurrentPlayer().getColor() + " is in Check!";
-            case WHITE_WINS_CHECKMATE -> "Checkmate! WHITE wins.";
-            case BLACK_WINS_CHECKMATE -> "Checkmate! BLACK wins.";
-            case WHITE_SURRENDERS -> "BLACK wins by surrender.";
-            case BLACK_SURRENDERS -> "WHITE wins by surrender.";
-            case STALEMATE_DRAW -> "Stalemate! It's a draw.";
-            case FIFTY_MOVE_DRAW -> "Draw by 50-move rule.";
-            case THREEFOLD_REPETITION_DRAW -> "Draw by threefold repetition.";
-            case INSUFFICIENT_MATERIAL_DRAW -> "Draw by insufficient material.";
-            default -> "";
-        };
-        statusLabel.setText(status);
-        resultLabel.setText(getPgnResult(gameModel.getGameState()));
-        if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
-            Platform.runLater(() -> {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Game Over");
-                alert.setHeaderText(null);
-                alert.setContentText(status);
-                alert.show();
-                //boardGridPane.setMouseTransparent(true);
-            });
-        }
-    }
-
-    @FXML
-    private void handleNewGame() {
-        startNewGame();
-    }
-
-    @FXML
-    private void handleUndoMove() {
-        clearSelectionAndHighlights();
-        Move undoneMove = gameModel.undo();
-        if (undoneMove != null) {
-            currentPlyPointer--;
-            rebuildMoveHistoryView();
-            refreshBoardView();
-            updateTurnLabel();
-            updateStatusBasedOnGameState();
-            updateUndoRedoButtonStates();
-            updateCapturedPiecesView();
-            updateMoveHistoryViewHighlightAndScroll();
-        }
-    }
-
-    @FXML
-    private void handleRedoMove() {
-        clearSelectionAndHighlights();
-        Move redoneMove = gameModel.redo();
-        if (redoneMove != null) {
-            currentPlyPointer++;
-            rebuildMoveHistoryView();
-            refreshBoardView();
-            updateTurnLabel();
-            updateStatusBasedOnGameState();
-            updateUndoRedoButtonStates();
-            updateCapturedPiecesView();
-            updateMoveHistoryViewHighlightAndScroll();
-        }
-    }
-
-    private void updateUndoRedoButtonStates() {
-        undoMoveButton.setDisable(!gameModel.canUndo());
-        undoMenuItem.setDisable(!gameModel.canUndo());
-
-        redoMoveButton.setDisable(!gameModel.canRedo());
-        redoMenuItem.setDisable(!gameModel.canRedo());
-    }
-
-    @FXML
-    private void handleSurrender() {
-        if (isGameOver()) {
-            System.out.println("Surrender blocked: Game is already over with state " + gameModel.getGameState());
-            return;
-        }
-
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Confirm surrender");
-        confirmation.setHeaderText(null);
-        confirmation.setContentText("Do you really want to surrender?");
-        Optional<ButtonType> result = confirmation.showAndWait();
-
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-            PieceColor currentPlayerColor = gameModel.getCurrentPlayer().getColor();
-            String winner = (currentPlayerColor == PieceColor.WHITE) ? "BLACK" : "WHITE";
-            System.out.println("Surrender initiated by " + currentPlayerColor);
-
-            // Gọi phương thức surrender từ Game
-            gameModel.surrender();
-
-            // Cập nhật giao diện
-            updateStatusBasedOnGameState();
-            updateTurnLabel();
-            refreshBoardView();
-            boardGridPane.setMouseTransparent(true); // Khóa bàn cờ
-            undoMoveButton.setDisable(true);
-            surrenderButton.setDisable(true);
-
-            // Thêm vào lịch sử nước đi
-//            moveHistoryObservableList.add(currentPlayerColor + " surrenders");
-//            moveHistoryListView.scrollTo(moveHistoryObservableList.size() - 1);
-
-            // Phát âm thanh
-            playSound(endGameSoundPlayer);
-        }
-    }
-
-    private void updateCapturedPiecesView() {
-        capturedByWhiteArea.getChildren().clear();
-        capturedByBlackArea.getChildren().clear();
-
-        Comparator<Piece> pieceComparator = Comparator.comparingInt((Piece p) -> getPieceValue(p.getType())).reversed().thenComparing(p -> p.getType().toString());
-
-        List<Piece> whiteCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.WHITE));
-        populateCapturedPiecesPane(pieceComparator, whiteCaptures, capturedByWhiteArea);
-
-        List<Piece> blackCaptures = new ArrayList<>(gameModel.getCapturedPieces(PieceColor.BLACK));
-        populateCapturedPiecesPane(pieceComparator, blackCaptures, capturedByBlackArea);
-    }
-
     private void populateCapturedPiecesPane(Comparator<Piece> comparator, List<Piece> capturedList, FlowPane targetPane) {
         capturedList.sort(comparator);
         for (Piece captured : capturedList) {
@@ -861,33 +1059,6 @@ public class ChessController {
         };
     }
 
-    @FXML
-    private void handleFlipBoard() {
-        boardIsFlipped = !boardIsFlipped;
-        clearSelectionAndHighlights();
-        refreshBoardView();
-    }
-
-    @FXML
-    private void handleSaveGame() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Save Game as PGN");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN Files (*.pgn)", "*.pgn"));
-        File file = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
-
-        if (file != null) {
-            try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-                PgnHeaders headers = getCurrentHeadersFromFields();
-                headers.setResult(getPgnResult(gameModel.getGameState()));
-                String pgnContent = PgnFormatter.formatGame(gameModel.getPgnHeaders(), gameModel.getPlayedMoveSequence(), gameModel.getGameState());
-                writer.print(pgnContent);
-                updateStatusLabel("Game saved as PGN: " + file.getName());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
     private String getPgnResult(Game.GameState state) {
         return switch (state) {
             case WHITE_WINS_CHECKMATE, BLACK_SURRENDERS -> "1-0";
@@ -895,75 +1066,6 @@ public class ChessController {
             case STALEMATE_DRAW, FIFTY_MOVE_DRAW, THREEFOLD_REPETITION_DRAW, INSUFFICIENT_MATERIAL_DRAW -> "1/2-1/2";
             default -> "*";
         };
-    }
-
-    @FXML
-    private void handleLoadGame() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Load Game from PGN");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN Files (*.pgn)", "*.pgn"));
-        File file = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
-
-        if (file != null) {
-            try {
-                String pgnString = new String(java.nio.file.Files.readAllBytes(file.toPath()));
-
-                this.gameModel = PgnParser.parsePgn(pgnString);
-                selectedSquare = null;
-                availableMovesForSelectedPiece.clear();
-                refreshBoardView();
-                updateTurnLabel();
-                updateStatusBasedOnGameState();
-                updateUndoRedoButtonStates();
-                updateCapturedPiecesView();
-                currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
-                rebuildMoveHistoryView();
-                updateStatusLabel("Game loaded from PGN: " + file.getName());
-                updatePgnHeaderFields(gameModel.getPgnHeaders());
-            } catch (IOException | PgnParseException e) {
-                e.printStackTrace();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    private void updatePgnHeaderFields(PgnHeaders headers) {
-        if (headers == null) {
-            whitePlayerField.setText("White Player");
-            blackPlayerField.setText("Black Player");
-            eventField.setText("Casual Game");
-            siteField.setText("Local");
-            datePicker.setValue(LocalDate.now());
-            resultLabel.setText("*");
-        } else {
-            whitePlayerField.setText(headers.getWhite());
-            blackPlayerField.setText(headers.getBlack());
-            eventField.setText(headers.getEvent());
-            siteField.setText(headers.getSite());
-            try {
-                datePicker.setValue(LocalDate.parse(headers.getDate(), DateTimeFormatter.ofPattern("yyyy.MM.dd")));
-            } catch (Exception e) {
-                datePicker.setValue(LocalDate.now());
-                System.err.println("Could not parse PGN date: " + headers.getDate());
-            }
-            resultLabel.setText(headers.getResult());
-        }
-    }
-
-    private PgnHeaders getCurrentHeadersFromFields() {
-        PgnHeaders headers = new PgnHeaders();
-        headers.setWhite(whitePlayerField.getText());
-        headers.setBlack(blackPlayerField.getText());
-        headers.setEvent(eventField.getText());
-        headers.setSite(siteField.getText());
-        if (datePicker.getValue() != null) {
-            headers.setDate(datePicker.getValue().format(DateTimeFormatter.ofPattern("yyyy.MM.dd")));
-        } else {
-            headers.setDate("????.??.??");
-        }
-        headers.setResult(resultLabel.getText());
-        return headers;
     }
 
     private void jumpToMoveState(int targetPly) {
@@ -984,60 +1086,26 @@ public class ChessController {
             }
         }
         currentPlyPointer = targetPly;
-        rebuildMoveHistoryView();
 
-        refreshBoardView();
-        updateTurnLabel();
-        updateStatusBasedOnGameState();
-        updateUndoRedoButtonStates();
-        surrenderButton.setDisable(false);
-        boardGridPane.setMouseTransparent(false);
-        updateCapturedPiecesView();
-        updateMoveHistoryViewHighlightAndScroll();
+        updateAllUIStates();
     }
 
-    private void updateMoveHistoryViewHighlightAndScroll() {
-        moveHistoryListView.refresh();
-        if (currentPlyPointer >= 0) {
-            int displayIndex = currentPlyPointer / 2;
-            if (displayIndex < moveHistoryObservableList.size()) {
-                javafx.application.Platform.runLater(() -> moveHistoryListView.scrollTo(displayIndex));
-            }
+    private enum GameMode {PLAYER_VS_PLAYER, PLAYER_VS_COMPUTER, ANALYSIS}
+
+    private enum Difficulty {
+        EASY(0), MEDIUM(100), HARD(5000);
+        private final int moveTimeMillis;
+
+        Difficulty(int moveTimeMillis) {
+            this.moveTimeMillis = moveTimeMillis;
+        }
+
+        public int getMoveTimeMillis() {
+            return moveTimeMillis;
         }
     }
 
-    private void rebuildMoveHistoryView() {
-        moveHistoryObservableList.clear();
-        List<Move> playedMoves = gameModel.getPlayedMoveSequence();
-        for (int i = 0; i < playedMoves.size(); i++) {
-            Move whiteMove = playedMoves.get(i);
-            if (whiteMove.getPieceMoved().getColor() == PieceColor.WHITE) {
-                Move blackMove = null;
-                if (i + 1 < playedMoves.size()) {
-                    blackMove = playedMoves.get(i + 1);
-                }
-                moveHistoryObservableList.add(new MovePairDisplay((i / 2) + 1, whiteMove, blackMove));
-                if (blackMove != null) {
-                    i++;
-                }
-            } else {
-                moveHistoryObservableList.add(new MovePairDisplay((i / 2) + 1, null, whiteMove));
-            }
-        }
-        updateMoveHistoryViewHighlightAndScroll();
-    }
-
-    @FXML
-    private void handleExit() {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Exit Game");
-        alert.setHeaderText("You are about to exit the game.");
-        alert.setContentText("Are you sure you want to exit?");
-
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-            Platform.exit();
-        }
+    private record GameSetupResult(GameMode mode, PieceColor playerColor, Difficulty difficulty) {
     }
 
     private static class MoveListCell extends ListCell<MovePairDisplay> {
