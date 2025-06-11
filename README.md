@@ -11,6 +11,12 @@
 
 ## Cầu hoà
 
+### Gợi ý hướng làm
+
+- Nút `offerDraw` đã có sẵn, xử lý trong hàm `handleOfferDraw()`.
+- Khi 2 bên đồng ý hoà, cập nhật GameState thành `GameState.DRAW_BY_AGREEMENT`.
+- Tham khảo luồng xử lý của bên đầu hàng để biết thêm chi tiết.
+
 ### Đánh online
 
 #### Gợi ý hướng làm
