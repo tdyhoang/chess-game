@@ -536,6 +536,8 @@ public class ChessController {
         this.playerColor = playerSide;
         this.currentDifficulty = difficulty;
 
+        this.boardIsFlipped = playerSide == PieceColor.BLACK;
+
         gameModel.initializeGame();
         clearSelectionAndHighlights();
         currentPlyPointer = -1;
