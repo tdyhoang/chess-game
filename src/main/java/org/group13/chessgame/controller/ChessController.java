@@ -733,17 +733,7 @@ public class ChessController {
             if (currentMode == GameMode.PLAYER_VS_COMPUTER && !isGameOver()) {
                 requestEngineMove();
             }
-            currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
-            Piece captured = executedMove.getPieceCaptured();
-            if (captured != null) {
-                if (captured.getColor() == PieceColor.BLACK) {
-                    whiteCapturedPieces.add(captured);
-                } else {
-                    blackCapturedPieces.add(captured);
-                }
-            }
-            updateAllUIStates();
-            playMoveSounds(executedMove);
+            updateUIAfterMoving(executedMove);
         } else {
             updateStatusLabel("Error: Invalid move attempted!");
             refreshBoardView();
@@ -755,8 +745,11 @@ public class ChessController {
         boardGridPane.setMouseTransparent(true);
         statusLabel.setText("Computer is thinking...");
 
+        List<Move> currentHistory = new ArrayList<>(gameModel.getUndoStack());
+        Collections.reverse(currentHistory);
+
         StringBuilder movesString = new StringBuilder();
-        for (Move move : gameModel.getPlayedMoveSequence()) {
+        for (Move move : currentHistory) {
             movesString.append(" ").append(move.toString());
         }
         String positionCommand = "position startpos moves" + movesString;
@@ -829,22 +822,26 @@ public class ChessController {
             if (isPlayerMove) {
                 performMoveLogic(move);
             } else {
-                currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
-                Piece captured = move.getPieceCaptured();
-                if (captured != null) {
-                    if (captured.getColor() == PieceColor.BLACK) {
-                        whiteCapturedPieces.add(captured);
-                    } else {
-                        blackCapturedPieces.add(captured);
-                    }
-                }
-                updateAllUIStates();
-                playMoveSounds(move);
+                updateUIAfterMoving(move);
             }
             boardGridPane.setMouseTransparent(false);
         });
 
         tt.play();
+    }
+
+    private void updateUIAfterMoving(Move move) {
+        currentPlyPointer = gameModel.getUndoStack().size() - 1;
+        Piece captured = move.getPieceCaptured();
+        if (captured != null) {
+            if (captured.getColor() == PieceColor.BLACK) {
+                whiteCapturedPieces.add(captured);
+            } else {
+                blackCapturedPieces.add(captured);
+            }
+        }
+        updateAllUIStates();
+        playMoveSounds(move);
     }
 
     private void addDragAndDropHandlers(StackPane squarePane, ImageView pieceImageView) {
@@ -1203,7 +1200,7 @@ public class ChessController {
 
         updateAllUIStates();
 
-        if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor) {
+        if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor && !isGameOver()) {
             requestEngineMove();
         }
     }
