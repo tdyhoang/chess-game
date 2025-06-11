@@ -199,14 +199,4 @@ public class Move {
 
         return startSquare.getRow() == other.startSquare.getRow() && startSquare.getCol() == other.startSquare.getCol() && endSquare.getRow() == other.endSquare.getRow() && endSquare.getCol() == other.endSquare.getCol() && promotionPieceType == other.promotionPieceType;
     }
-
-    public String toUciString() {
-        String start = NotationUtils.squareToAlgebraic(startSquare).toLowerCase();
-        String end = NotationUtils.squareToAlgebraic(endSquare).toLowerCase();
-        String promotion = "";
-        if (isPromotion()) {
-            promotion = Piece.pieceTypeToChar(promotionPieceType).toLowerCase();
-        }
-        return start + end + promotion;
-    }
 }

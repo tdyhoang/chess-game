@@ -61,6 +61,10 @@ public class ChessController {
     @FXML
     private MenuItem redoMenuItem;
     @FXML
+    private MenuItem surrenderMenuItem;
+    @FXML
+    private MenuItem offerDrawMenuItem;
+    @FXML
     private HBox blackPlayerArea;
     @FXML
     private Label blackPlayerNameLabel;
@@ -118,7 +122,7 @@ public class ChessController {
     private MediaPlayer moveSoundPlayer, captureSoundPlayer, checkSoundPlayer, endGameSoundPlayer, castleSoundPlayer, promoteSoundPlayer;
 
     @FXML
-    public void initialize() throws IOException {
+    public void initialize() {
         this.gameModel = new Game();
         this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
         initializeBoardGrid();
@@ -390,17 +394,26 @@ public class ChessController {
     }
 
     private void updateUndoRedoButtonStates() {
-        undoMoveButton.setDisable(!gameModel.canUndo());
-        undoMenuItem.setDisable(!gameModel.canUndo());
+        boolean isPlayerTurn = currentMode == GameMode.ANALYSIS || gameModel.getCurrentPlayer().getColor() == playerColor;
 
-        redoMoveButton.setDisable(!gameModel.canRedo());
-        redoMenuItem.setDisable(!gameModel.canRedo());
+        undoMoveButton.setDisable(!gameModel.canUndo() || !isPlayerTurn);
+        undoMenuItem.setDisable(!gameModel.canUndo() || !isPlayerTurn);
+
+        redoMoveButton.setDisable(!gameModel.canRedo() || !isPlayerTurn);
+        redoMenuItem.setDisable(!gameModel.canRedo() || !isPlayerTurn);
     }
 
     private void updateActionButtonsState() {
         boolean isGameOver = isGameOver();
-        offerDrawButton.setDisable(isGameOver);
-        surrenderButton.setDisable(isGameOver);
+        boolean isPlayerTurn = currentMode == GameMode.ANALYSIS || gameModel.getCurrentPlayer().getColor() == playerColor;
+
+        offerDrawMenuItem.setDisable(isGameOver || !isPlayerTurn);
+        offerDrawButton.setDisable(isGameOver || !isPlayerTurn);
+
+        surrenderMenuItem.setDisable(isGameOver || !isPlayerTurn);
+        surrenderButton.setDisable(isGameOver || !isPlayerTurn);
+
+        moveHistoryListView.setDisable(!isPlayerTurn);
     }
 
     private void updateCapturedPiecesView() {
@@ -501,8 +514,8 @@ public class ChessController {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == startButtonType) {
                 GameMode selectedMode;
-                if(pvpRadio.isSelected()) selectedMode = GameMode.PLAYER_VS_PLAYER;
-                else if(pvcRadio.isSelected()) selectedMode = GameMode.PLAYER_VS_COMPUTER;
+                if (pvpRadio.isSelected()) selectedMode = GameMode.PLAYER_VS_PLAYER;
+                else if (pvcRadio.isSelected()) selectedMode = GameMode.PLAYER_VS_COMPUTER;
                 else selectedMode = GameMode.ANALYSIS;
                 PieceColor selectedColor = whiteRadio.isSelected() ? PieceColor.WHITE : PieceColor.BLACK;
                 Difficulty selectedDifficulty = difficultyComboBox.getValue();
@@ -542,8 +555,14 @@ public class ChessController {
         Move undoneMove = gameModel.undo();
         if (undoneMove != null) {
             currentPlyPointer--;
-            updateAllUIStates();
+            if (currentMode != GameMode.ANALYSIS && gameModel.canUndo()) {
+                undoneMove = gameModel.undo();
+                if (undoneMove != null) {
+                    currentPlyPointer--;
+                }
+            }
         }
+        updateAllUIStates();
     }
 
     @FXML
@@ -552,8 +571,12 @@ public class ChessController {
         Move redoneMove = gameModel.redo();
         if (redoneMove != null) {
             currentPlyPointer++;
-            updateAllUIStates();
+            redoneMove = gameModel.redo();
+            if (redoneMove != null) {
+                currentPlyPointer++;
+            }
         }
+        updateAllUIStates();
     }
 
     @FXML
@@ -1179,6 +1202,10 @@ public class ChessController {
         currentPlyPointer = targetPly;
 
         updateAllUIStates();
+
+        if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor) {
+            requestEngineMove();
+        }
     }
 
     private enum GameMode {PLAYER_VS_PLAYER, PLAYER_VS_COMPUTER, ANALYSIS}
