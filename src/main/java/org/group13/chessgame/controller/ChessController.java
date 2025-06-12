@@ -859,18 +859,19 @@ public class ChessController {
     @FXML
     private void handleNewGame() {
         if (gameModel.canUndo()) {
-            Alert confirmSave = new Alert(Alert.AlertType.CONFIRMATION, "Do you want to save the current game before starting a new one?", ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
-            confirmSave.setTitle("Save Current Game?");
-            Optional<ButtonType> result = confirmSave.showAndWait();
-
-            if (result.isPresent()) {
-                if (result.get() == ButtonType.YES) {
-                    handleSaveGame();
-                } else if (result.get() == ButtonType.CANCEL) {
+            if (!isGameOver()) {
+                Alert confirmSave = new Alert(Alert.AlertType.CONFIRMATION, "Do you want to save the current game before starting a new one?", ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
+                confirmSave.setTitle("Save Current Game?");
+                Optional<ButtonType> result = confirmSave.showAndWait();
+                if (result.isPresent()) {
+                    if (result.get() == ButtonType.YES) {
+                        handleSaveGame();
+                    } else if (result.get() == ButtonType.CANCEL) {
+                        return;
+                    }
+                } else {
                     return;
                 }
-            } else {
-                return;
             }
         }
 
