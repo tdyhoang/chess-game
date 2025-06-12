@@ -184,6 +184,7 @@ public class ChessController {
             }
 
         } catch (IOException e) {
+            isPlayingPvp = false;
             e.printStackTrace();
             showAlert("Error", "Could not load Host Game view: " + e.getMessage(), Alert.AlertType.ERROR);
         }
@@ -217,6 +218,7 @@ public class ChessController {
                     showAlert("Connection Error", "Successfully connected, but no valid client socket.", Alert.AlertType.ERROR);
                 }
             } else {
+                isPlayingPvp = false;
                 System.out.println("ChessController: Join game cancelled or failed to connect.");
                 // The JoinGameController already updates its statusText with specific errors.
                 // You could retrieve that status message if needed here, but the user already saw it.
@@ -1193,6 +1195,18 @@ public class ChessController {
                 showAlert("Draw offer", "Draw offer sent.", Alert.AlertType.INFORMATION);
             } catch (IOException e) {
                 e.printStackTrace();
+            }
+        }
+        else {
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Draw offer");
+            confirmation.setHeaderText(null);
+            confirmation.setContentText("Does the other player accept the draw offer?");
+            Optional<ButtonType> result = confirmation.showAndWait();
+
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                gameModel.setGameState(Game.GameState.DRAW_BY_AGREEMENT);
+                updateStatusBasedOnGameState();
             }
         }
     }
