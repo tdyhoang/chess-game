@@ -666,6 +666,10 @@ public class Game {
         return gameState;
     }
 
+    public void setGameState(GameState gameState) {
+        this.gameState = gameState;
+    }
+
     public boolean canUndo() {
         return !undoStack.isEmpty();
     }

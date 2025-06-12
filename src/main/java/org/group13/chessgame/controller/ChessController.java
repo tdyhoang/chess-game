@@ -62,6 +62,10 @@ public class ChessController {
     private static final int NETWORK_SURRENDER_WHITE_CODE = 1;
     private static final int NETWORK_SURRENDER_BLACK_CODE = 2;;
     private static final int NETWORK_CHAT_CODE = 3;
+    private static final int NETWORK_OFFER_DRAW_CODE = 4;
+    private static final int NETWORK_ACCEPT_OFFER_DRAW_CODE = 5;
+
+
 
     private int currentPlyPointer = -1;
     @FXML
@@ -329,7 +333,33 @@ public class ChessController {
                     while (!isCancelled() && gameSocket != null && !gameSocket.isClosed()) {
                         // Read the move from the opponent as a string (e.g., SAN or FEN)
                         int messageType = dataInputStream.readInt();
-                        if (messageType == NETWORK_MOVE_CODE) {
+                        if (messageType == NETWORK_OFFER_DRAW_CODE) {
+                            Platform.runLater(() -> {
+                                Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+                                confirmation.setTitle("Draw offer");
+                                confirmation.setHeaderText(null);
+                                confirmation.setContentText("Do you to accept opponent's draw offer?");
+                                Optional<ButtonType> result = confirmation.showAndWait();
+
+                                if (result.isPresent() && result.get() == ButtonType.OK) {
+                                    gameModel.setGameState(Game.GameState.DRAW_BY_AGREEMENT);
+                                    updateStatusBasedOnGameState();
+                                    try {
+                                        dataOutputStream.writeInt(NETWORK_ACCEPT_OFFER_DRAW_CODE);
+                                        dataOutputStream.flush();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
+                        }
+                        else if (messageType == NETWORK_ACCEPT_OFFER_DRAW_CODE) {
+                            Platform.runLater(() -> {
+                                gameModel.setGameState(Game.GameState.DRAW_BY_AGREEMENT);
+                                updateStatusBasedOnGameState();
+                            });
+                        }
+                        else if (messageType == NETWORK_MOVE_CODE) {
                             String opponentMoveSan = dataInputStream.readUTF();
                             System.out.println("Received move from opponent: " + opponentMoveSan);
 
@@ -768,9 +798,13 @@ public class ChessController {
             case FIFTY_MOVE_DRAW -> "Draw by 50-move rule.";
             case THREEFOLD_REPETITION_DRAW -> "Draw by threefold repetition.";
             case INSUFFICIENT_MATERIAL_DRAW -> "Draw by insufficient material.";
+            case DRAW_BY_AGREEMENT -> "Both sides agreed to draw.";
             default -> "";
         };
         statusLabel.setText(status);
+        if (isGameOver()) {
+            turnLabel.setText("Game over!");
+        }
         resultLabel.setText(getPgnResult(gameModel.getGameState()));
         if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
             Platform.runLater(() -> {
@@ -797,8 +831,8 @@ public class ChessController {
         boolean isGameOver = isGameOver();
         boolean isPlayerTurn = currentMode == GameMode.ANALYSIS || gameModel.getCurrentPlayer().getColor() == playerColor;
 
-        offerDrawMenuItem.setDisable(!isGameOver && (currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
-        offerDrawButton.setDisable(!isGameOver && (currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
+        offerDrawMenuItem.setDisable(isGameOver || !(currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
+        offerDrawButton.setDisable(isGameOver || !(currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
 
         surrenderMenuItem.setDisable(isGameOver || !isPlayerTurn);
         surrenderButton.setDisable(isGameOver || !isPlayerTurn);
@@ -980,25 +1014,21 @@ public class ChessController {
             handleHostGame();
             isPlayingPvp = true;
             chatHistoryTab.setDisable(false);
-            offerDrawButton.setVisible(false);
-            offerDrawMenuItem.setVisible(false);
         }
         else if (currentMode == GameMode.JOINING) {
             handleJoinGame();
             isPlayingPvp = true;
             chatHistoryTab.setDisable(false);
-            offerDrawButton.setVisible(false);
-            offerDrawMenuItem.setVisible(false);
         }
         else {
             if (!isPlayingPvp) {
                 isLanGameActive = false;
-                offerDrawButton.setVisible(false);
-                offerDrawMenuItem.setVisible(false);
+                offerDrawButton.setDisable(true);
+                offerDrawMenuItem.setDisable(true);
             } else {
                 isLanGameActive = true;
-                offerDrawButton.setVisible(false);
-                offerDrawMenuItem.setVisible(false);
+                offerDrawButton.setDisable(false);
+                offerDrawMenuItem.setDisable(false);
             }
             chatHistoryTab.setDisable(true);
             gameModel.initializeGame();
@@ -1162,6 +1192,15 @@ public class ChessController {
 
     @FXML
     private void handleOfferDraw() {
+        if (isLanGameActive) {
+            try {
+                dataOutputStream.writeInt(NETWORK_OFFER_DRAW_CODE);
+                dataOutputStream.flush();
+                showAlert("Draw offer", "Draw offer sent.", Alert.AlertType.INFORMATION);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @FXML
