@@ -5,24 +5,28 @@ import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.Dragboard;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.TransferMode;
+import javafx.scene.input.*;
 import javafx.scene.layout.*;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.group13.chessgame.engine.UciService;
 import org.group13.chessgame.model.*;
@@ -32,10 +36,8 @@ import org.group13.chessgame.utils.PgnParseException;
 import org.group13.chessgame.utils.PgnParser;
 import org.group13.chessgame.utils.PieceImageProvider;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
+import java.net.Socket;
 import java.net.URL;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -53,6 +55,14 @@ public class ChessController {
     private final List<Piece> whiteCapturedPieces = new ArrayList<>();
     private final List<Piece> blackCapturedPieces = new ArrayList<>();
     private final ObservableList<MovePairDisplay> moveHistoryObservableList = FXCollections.observableArrayList();
+    private final ObservableList<String> chatHistoryObservableList = FXCollections.observableArrayList();
+
+    // --- Network Communication Codes (Re-introducing for clarity) ---
+    private static final int NETWORK_MOVE_CODE = 0;
+    private static final int NETWORK_SURRENDER_WHITE_CODE = 1;
+    private static final int NETWORK_SURRENDER_BLACK_CODE = 2;;
+    private static final int NETWORK_CHAT_CODE = 3;
+
     private int currentPlyPointer = -1;
     @FXML
     private BorderPane rootPane;
@@ -89,7 +99,7 @@ public class ChessController {
     @FXML
     private Button redoMoveButton;
     @FXML
-    private Button flipBoardButton;
+    private Button autoFlipBoardButton;
     @FXML
     private Button offerDrawButton;
     @FXML
@@ -106,6 +116,14 @@ public class ChessController {
     private DatePicker datePicker;
     @FXML
     private Label resultLabel;
+    @FXML
+    private Tab chatHistoryTab;
+    @FXML
+    private ListView<String> chatHistoryListView;
+    @FXML
+    private TextField chatInputField;
+    @FXML
+    private TabPane infoTabPane;
 
     private Game gameModel;
     private UciService uciService;
@@ -121,10 +139,377 @@ public class ChessController {
 
     private MediaPlayer moveSoundPlayer, captureSoundPlayer, checkSoundPlayer, endGameSoundPlayer, castleSoundPlayer, promoteSoundPlayer;
 
+    private boolean isAutoFlippingBoard = false;
+
+    // Network related variables
+    private PieceColor myColor;
+    private boolean isLanGameActive = false;
+    private Socket gameSocket; // This will be the socket for the actual game communication
+    private DataInputStream dataInputStream;
+    private DataOutputStream dataOutputStream;
+    private Task<Void> networkListenerTask; // Task to listen for incoming moves
+    private boolean isPlayingPvp = false;
+
+    private void handleHostGame() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/group13/chessgame/host-game-view.fxml"));
+            Parent hostGameRoot = loader.load();
+            HostGameController hostGameController = loader.getController(); // Get controller reference early
+
+            Stage hostGameStage = new Stage();
+            hostGameStage.setTitle("Host Chess Game");
+            hostGameStage.setScene(new Scene(hostGameRoot));
+            hostGameStage.initModality(Modality.WINDOW_MODAL);
+            if (rootPane != null) {
+                hostGameStage.initOwner(rootPane.getScene().getWindow());
+            } else {
+                System.err.println("Warning: rootPane is null. Host game window might not be modal.");
+            }
+            hostGameStage.showAndWait(); // Wait for the dialog to close
+
+            // After the host game dialog closes, check if a connection was made
+            if (hostGameController.isServerStartedSuccessfully()) {
+                gameSocket = hostGameController.getClientSocket();
+                if (gameSocket != null && !gameSocket.isClosed()) {
+                    System.out.println("ChessController: Host server successfully started and client connected. Game ready!");
+                    initializeGameWithNetwork(gameSocket, true);
+                } else {
+                    System.err.println("ChessController: Host dialog closed, but no valid client socket.");
+                    showAlert("Connection Error", "Host server started, but failed to establish client connection.", Alert.AlertType.ERROR);
+                }
+            } else {
+                System.out.println("ChessController: Host game setup cancelled or server failed to start.");
+                showAlert("Game Setup", "Host game setup was cancelled or failed to start.", Alert.AlertType.INFORMATION);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert("Error", "Could not load Host Game view: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+
+    private void handleJoinGame() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/group13/chessgame/join-game-view.fxml"));
+            Parent joinGameRoot = loader.load();
+            JoinGameController joinGameController = loader.getController(); // Get controller reference early
+
+            Stage joinGameStage = new Stage();
+            joinGameStage.setTitle("Join Chess Game");
+            joinGameStage.setScene(new Scene(joinGameRoot));
+            joinGameStage.initModality(Modality.WINDOW_MODAL);
+            if (rootPane != null) {
+                joinGameStage.initOwner(rootPane.getScene().getWindow());
+            } else {
+                System.err.println("Warning: rootPane is null. Join game window might not be modal.");
+            }
+            joinGameStage.showAndWait(); // Wait for the dialog to close
+
+            // After the join game dialog closes, check if a connection was made
+            if (joinGameController.isConnectedSuccessfully()) {
+                gameSocket = joinGameController.getClientSocket();
+                if (gameSocket != null && !gameSocket.isClosed()) {
+                    System.out.println("ChessController: Successfully connected to host. Game ready!");
+                    initializeGameWithNetwork(gameSocket, false);
+                } else {
+                    System.err.println("ChessController: Join dialog closed, but no valid client socket.");
+                    showAlert("Connection Error", "Successfully connected, but no valid client socket.", Alert.AlertType.ERROR);
+                }
+            } else {
+                System.out.println("ChessController: Join game cancelled or failed to connect.");
+                // The JoinGameController already updates its statusText with specific errors.
+                // You could retrieve that status message if needed here, but the user already saw it.
+                showAlert("Game Setup", "Join game was cancelled or failed to connect.", Alert.AlertType.INFORMATION);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert("Error", "Could not load Join Game view: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+
+    // Helper method to show alerts
+    private void showAlert(String title, String message, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    @FXML
+    public void initializeGameWithNetwork(Socket gameSocket, boolean isHost) {
+        // Close any previous network connections if active
+//        closeNetworkConnections();
+
+//        chatHistoryTab.setDisable(false);
+        this.gameSocket = gameSocket;
+        this.isLanGameActive = true;
+        this.myColor = isHost ? PieceColor.WHITE : PieceColor.BLACK;
+
+        try {
+            this.dataOutputStream = new DataOutputStream(gameSocket.getOutputStream());
+            this.dataInputStream = new DataInputStream(gameSocket.getInputStream());
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert("Network Error", "Failed to setup network streams: " + e.getMessage(), Alert.AlertType.ERROR);
+            // TODO: handle if failed to setup network streams
+//            resetToLocalGame();
+            return;
+        }
+
+        // Start listening for opponent's moves
+        startNetworkListener();
+
+        // Initialize game model and UI elements as usual
+        this.gameModel = new Game();
+        this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
+        moveHistoryListView.setItems(moveHistoryObservableList);
+        setupMoveHistoryCellFactory();
+        initializeBoardGrid();
+        loadSounds();
+        setupPgnHeaderListeners();
+
+        startNewGame();
+
+
+        chatHistoryListView.setItems(chatHistoryObservableList);
+
+        // Set board perspective based on player's color
+        setBoardVisualPerspective(myColor);
+
+        undoMenuItem.setDisable(false);
+        redoMenuItem.setVisible(false);
+        undoMoveButton.setVisible(false);
+        redoMoveButton.setVisible(false);
+
+
+
+        // If it's not my turn, disable input until a move is received
+        if (gameModel.getCurrentPlayer().getColor() != myColor) {
+            updateStatusLabel("Waiting for " + gameModel.getCurrentPlayer().getColor() + "'s move...");
+        } else {
+            updateStatusLabel("Your turn (" + myColor + ")");
+        }
+
+        System.out.println("Network game started! My color: " + myColor);
+    }
+
+    // Helper to find a legal move by its Standard Algebraic Notation (SAN)
+    // This is a simplified placeholder. A robust network game would send coordinates.
+    private Move findMoveBySAN(String san) {
+        List<Move> legalMoves = gameModel.getAllLegalMovesForPlayer(gameModel.getCurrentPlayer().getColor());
+        for (Move move : legalMoves) {
+            // Need to compute SAN for each legal move and compare.
+            // This can be computationally expensive if done repeatedly.
+            // A better network protocol sends exact coordinates.
+            String currentMoveSan = org.group13.chessgame.utils.NotationUtils.moveToAlgebraic(move, gameModel); // Re-compute SAN
+            if (currentMoveSan.equals(san)) {
+                return move;
+            }
+            // For promotions, SAN might look like "e8=Q"
+            if (move.isPromotion() && san.equals(currentMoveSan + "=" + move.getPromotionPieceType().name().charAt(0))) {
+                return move;
+            }
+        }
+        return null;
+    }
+
+
+    // New: Starts a background task to listen for network moves
+    private void startNetworkListener() {
+        if (networkListenerTask != null && networkListenerTask.isRunning()) {
+            networkListenerTask.cancel();
+        }
+
+        networkListenerTask = new Task<Void>() {
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    while (!isCancelled() && gameSocket != null && !gameSocket.isClosed()) {
+                        // Read the move from the opponent as a string (e.g., SAN or FEN)
+                        int messageType = dataInputStream.readInt();
+                        if (messageType == NETWORK_MOVE_CODE) {
+                            String opponentMoveSan = dataInputStream.readUTF();
+                            System.out.println("Received move from opponent: " + opponentMoveSan);
+
+                            // Apply the move on the JavaFX Application Thread
+                            Platform.runLater(() -> {
+                                try {
+                                    Move opponentMove = findMoveBySAN(opponentMoveSan);
+                                    if (opponentMove != null) {
+                                        performMoveLogic(opponentMove); // Apply the move
+                                        updateStatusLabel("Opponent played: " + opponentMoveSan + ". Your turn.");
+                                        updateStatusBasedOnGameState();
+                                    } else {
+                                        System.err.println("Failed to parse or find opponent's move: " + opponentMoveSan);
+                                        showAlert("Network Error", "Received invalid move from opponent.", Alert.AlertType.ERROR);
+                                    }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    showAlert("Network Error", "Error applying opponent's move: " + e.getMessage(), Alert.AlertType.ERROR);
+                                }
+                            });
+                        }
+                        else if (messageType == NETWORK_SURRENDER_WHITE_CODE) {
+                            Platform.runLater(() -> {
+                                updateStatusBasedOnGameState();
+                                surrenderButton.setDisable(true);
+                                gameModel.surrender(PieceColor.WHITE);
+                                System.out.println("Surrender initiated by " + PieceColor.WHITE);
+
+                                // Cập nhật giao diện
+                                updateStatusBasedOnGameState();
+                                updateTurnLabel();
+                                refreshBoardView();
+                                boardGridPane.setMouseTransparent(true); // Khóa bàn cờ
+                                undoMoveButton.setDisable(true);
+                                surrenderButton.setDisable(true);
+
+                                // Phát âm thanh
+                                playSound(endGameSoundPlayer);
+//                                closeNetworkConnections();
+                            });
+
+                        }
+                        else if (messageType == NETWORK_SURRENDER_BLACK_CODE) {
+                            Platform.runLater(() -> {
+                                updateStatusBasedOnGameState();
+                                surrenderButton.setDisable(true);
+                                gameModel.surrender(PieceColor.BLACK);
+                                System.out.println("Surrender initiated by " + PieceColor.BLACK);
+
+                                // Cập nhật giao diện
+                                updateStatusBasedOnGameState();
+                                updateTurnLabel();
+                                refreshBoardView();
+                                boardGridPane.setMouseTransparent(true); // Khóa bàn cờ
+                                undoMoveButton.setDisable(true);
+                                surrenderButton.setDisable(true);
+
+                                // Phát âm thanh
+                                playSound(endGameSoundPlayer);
+//                                closeNetworkConnections();
+                            });
+                        }
+                        else if (messageType == NETWORK_CHAT_CODE) {
+                            String messageContent = dataInputStream.readUTF();
+                            chatHistoryListView.getItems().add(messageContent);
+                            chatHistoryListView.refresh();
+                        }
+                    }
+                } catch (EOFException e) {
+                    Platform.runLater(() -> {
+                        System.out.println("Opponent disconnected (EOF).");
+                        showAlert("Disconnected", "Opponent disconnected from the game.", Alert.AlertType.INFORMATION);
+                        // TODO: handle logic when opponent disconnected from the game
+//                        resetToLocalGame();
+                    });
+                } catch (IOException e) {
+                    if (!isCancelled()) { // Only report if not intentionally cancelled
+                        Platform.runLater(() -> {
+                            System.err.println("Network listener error: " + e.getMessage());
+                            showAlert("Network Error", "Network communication error: " + e.getMessage(), Alert.AlertType.ERROR);
+                            // TODO: handle logic when network communication is error.
+//                            resetToLocalGame();
+                        });
+                    }
+                }
+                return null;
+            }
+        };
+
+        networkListenerTask.setOnFailed(e -> {
+            // Task failed (uncaught exception in call())
+            System.err.println("Network listener task failed: " + e.getSource().getException().getMessage());
+            showAlert("Network Error", "An unhandled error occurred in the network listener.", Alert.AlertType.ERROR);
+            // TODO: handle logic when Network listener task failed
+//            resetToLocalGame();
+        });
+
+        Thread listenerThread = new Thread(networkListenerTask);
+        listenerThread.setDaemon(true); // Allow application to exit even if this thread is running
+        listenerThread.start();
+    }
+
+    // New: Helper to set board visual orientation
+    private void setBoardVisualPerspective(PieceColor perspective) {
+        // Set internal flag for refreshBoardView and getModelSquare
+        this.boardIsFlipped = (perspective == PieceColor.BLACK);
+        refreshBoardView(); // Re-render the board with the new perspective
+        System.out.println("Board visual perspective set to: " + perspective);
+
+        // Update player labels to reflect perspective
+        if (perspective == PieceColor.WHITE) {
+            whitePlayerNameLabel.setText("You (White)");
+            blackPlayerNameLabel.setText("Opponent (Black)");
+            blackPlayerArea.setAlignment(Pos.CENTER_RIGHT);
+            whitePlayerArea.setAlignment(Pos.CENTER_LEFT);
+        } else { // BLACK perspective
+            whitePlayerNameLabel.setText("Opponent (White)");
+            blackPlayerNameLabel.setText("You (Black)");
+            blackPlayerArea.setAlignment(Pos.CENTER_LEFT);
+            whitePlayerArea.setAlignment(Pos.CENTER_RIGHT);
+        }
+    }
+
+    @FXML
+    private void handleSendChatMessage() {
+        String message = chatInputField.getText();
+        if (message != null && !message.trim().isEmpty()) {
+            // Add the message to the chat history ListView
+            chatHistoryListView.getItems().add("You: " + message.trim());
+            chatInputField.clear(); // Clear the input field
+
+            try {
+                dataOutputStream.writeInt(NETWORK_CHAT_CODE);
+                dataOutputStream.writeUTF(message);
+                dataOutputStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.out.println("Sent chat message: " + message.trim());
+        }
+    }
+
+    @FXML
+    private void handleChatInputFieldKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            handleSendChatMessage();
+            event.consume(); // Consume the event to prevent default behavior (like new line in some text areas)
+        }
+    }
+
+    // New: Close network streams and socket
+    private void closeNetworkConnections() {
+        if (networkListenerTask != null) {
+            networkListenerTask.cancel(); // Stop the listener task
+            networkListenerTask = null;
+        }
+        try {
+            if (dataInputStream != null) {
+                dataInputStream.close();
+                dataInputStream = null;
+            }
+            if (dataOutputStream != null) {
+                dataOutputStream.close();
+                dataOutputStream = null;
+            }
+            if (gameSocket != null && !gameSocket.isClosed()) {
+                gameSocket.close();
+                gameSocket = null;
+                System.out.println("Network connections closed.");
+            }
+        } catch (IOException e) {
+            System.err.println("Error closing network connections: " + e.getMessage());
+        }
+    }
+
     @FXML
     public void initialize() {
         this.gameModel = new Game();
         this.squarePanes = new StackPane[Board.SIZE][Board.SIZE];
+
         initializeBoardGrid();
         loadSounds();
 
@@ -201,7 +586,10 @@ public class ChessController {
                 addDragAndDropHandlers(squarePane, pieceImageView);
                 final int r = row;
                 final int c = col;
-                squarePane.setOnMouseClicked(event -> handleSquareClick(r, c));
+                squarePane.setOnMouseClicked(event -> {
+                    if (!(isLanGameActive && myColor != gameModel.getCurrentPlayer().getColor()))
+                        handleSquareClick(r, c);
+                });
             }
         }
     }
@@ -313,6 +701,8 @@ public class ChessController {
         rebuildMoveHistoryView();
         updatePgnHeaderFieldsFromResult();
         updateMoveHistoryViewHighlightAndScroll();
+        autoFlipBoardButton.setVisible(currentMode == GameMode.ANALYSIS);
+
     }
 
     private void updatePgnHeaderFields(PgnHeaders headers) {
@@ -407,8 +797,8 @@ public class ChessController {
         boolean isGameOver = isGameOver();
         boolean isPlayerTurn = currentMode == GameMode.ANALYSIS || gameModel.getCurrentPlayer().getColor() == playerColor;
 
-        offerDrawMenuItem.setDisable(isGameOver || !isPlayerTurn);
-        offerDrawButton.setDisable(isGameOver || !isPlayerTurn);
+        offerDrawMenuItem.setDisable(!isGameOver && (currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
+        offerDrawButton.setDisable(!isGameOver && (currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
 
         surrenderMenuItem.setDisable(isGameOver || !isPlayerTurn);
         surrenderButton.setDisable(isGameOver || !isPlayerTurn);
@@ -459,15 +849,17 @@ public class ChessController {
         grid.setPadding(new Insets(20, 150, 10, 10));
 
         ToggleGroup modeGroup = new ToggleGroup();
-        RadioButton pvpRadio = new RadioButton("Player vs Player");
-        pvpRadio.setToggleGroup(modeGroup);
-
         RadioButton pvcRadio = new RadioButton("Player vs Computer");
         pvcRadio.setToggleGroup(modeGroup);
 
-        RadioButton aRadio = new RadioButton("Analysis Mode");
+        RadioButton aRadio = new RadioButton("2 Players Mode");
         aRadio.setToggleGroup(modeGroup);
         aRadio.setSelected(true);
+
+        RadioButton hostGameRadio = new RadioButton("Host game");
+        RadioButton joinGameRadio = new RadioButton("Join game");
+        hostGameRadio.setToggleGroup(modeGroup);
+        joinGameRadio.setToggleGroup(modeGroup);
 
         Label colorLabel = new Label("Play as:");
         ToggleGroup colorGroup = new ToggleGroup();
@@ -476,7 +868,9 @@ public class ChessController {
         whiteRadio.setSelected(true);
         RadioButton blackRadio = new RadioButton("Black");
         blackRadio.setToggleGroup(colorGroup);
-        HBox colorBox = new HBox(10, whiteRadio, blackRadio);
+        RadioButton randomRadio = new RadioButton("Random");
+        randomRadio.setToggleGroup(colorGroup);
+        HBox colorBox = new HBox(10, whiteRadio, blackRadio, randomRadio);
 
         Label difficultyLabel = new Label("Difficulty:");
         ComboBox<Difficulty> difficultyComboBox = new ComboBox<>();
@@ -490,18 +884,21 @@ public class ChessController {
 
         modeGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             boolean isPvc = (newVal == pvcRadio);
-            boolean isPvp = (newVal == pvpRadio);
+            boolean isHosting = (newVal == hostGameRadio);
+            boolean isJoining = (newVal == joinGameRadio);
+            boolean isPvp = (newVal == hostGameRadio || newVal == joinGameRadio);
             boolean isAnalysis = (newVal == aRadio);
-            colorLabel.setDisable(isAnalysis);
-            colorBox.setDisable(isAnalysis);
+            colorLabel.setDisable(isAnalysis || isJoining);
+            colorBox.setDisable(isAnalysis || isJoining);
             difficultyLabel.setDisable(!isPvc);
             difficultyComboBox.setDisable(!isPvc);
         });
 
         grid.add(new Label("Game Mode:"), 0, 0);
-        grid.add(pvpRadio, 1, 0);
+        grid.add(aRadio, 1, 0);
         grid.add(pvcRadio, 2, 0);
-        grid.add(aRadio, 3, 0);
+        grid.add(hostGameRadio, 3, 0);
+        grid.add(joinGameRadio, 4, 0);
 
         grid.add(colorLabel, 0, 1);
         grid.add(colorBox, 1, 1, 2, 1);
@@ -514,10 +911,34 @@ public class ChessController {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == startButtonType) {
                 GameMode selectedMode;
-                if (pvpRadio.isSelected()) selectedMode = GameMode.PLAYER_VS_PLAYER;
-                else if (pvcRadio.isSelected()) selectedMode = GameMode.PLAYER_VS_COMPUTER;
-                else selectedMode = GameMode.ANALYSIS;
-                PieceColor selectedColor = whiteRadio.isSelected() ? PieceColor.WHITE : PieceColor.BLACK;
+                if (hostGameRadio.isSelected()) {
+                    isPlayingPvp = true;
+                    selectedMode = GameMode.HOSTING;
+                }
+                else if (joinGameRadio.isSelected()) {
+                    isPlayingPvp = true;
+                    selectedMode = GameMode.JOINING;
+                }
+                else if (pvcRadio.isSelected()) {
+                    selectedMode = GameMode.PLAYER_VS_COMPUTER;
+                    isPlayingPvp = false;
+                }
+                else {
+                    selectedMode = GameMode.ANALYSIS;
+                    isPlayingPvp = false;
+                }
+                PieceColor selectedColor = PieceColor.WHITE;
+                if (randomRadio.isSelected()) {
+                    Random random = new Random();
+                    int randomNumber = random.nextInt(2);
+                    System.out.println(randomNumber);
+                    if (randomNumber == 0) {
+                        selectedColor = PieceColor.WHITE;
+                    } else if (randomNumber == 1)
+                        selectedColor = PieceColor.BLACK;
+                } else {
+                    selectedColor = whiteRadio.isSelected() ? PieceColor.WHITE : PieceColor.BLACK;
+                }
                 Difficulty selectedDifficulty = difficultyComboBox.getValue();
                 return new GameSetupResult(selectedMode, selectedColor, selectedDifficulty);
             }
@@ -538,16 +959,42 @@ public class ChessController {
 
         this.boardIsFlipped = playerSide == PieceColor.BLACK;
 
-        gameModel.initializeGame();
-        clearSelectionAndHighlights();
-        currentPlyPointer = -1;
-        updatePgnHeaderFields(gameModel.getPgnHeaders());
-        updateAllUIStates();
-        whiteCapturedPieces.clear();
-        blackCapturedPieces.clear();
+        if (currentMode == GameMode.HOSTING) {
+            handleHostGame();
+            isPlayingPvp = true;
+            chatHistoryTab.setDisable(false);
+            offerDrawButton.setVisible(false);
+            offerDrawMenuItem.setVisible(false);
+        }
+        else if (currentMode == GameMode.JOINING) {
+            handleJoinGame();
+            isPlayingPvp = true;
+            chatHistoryTab.setDisable(false);
+            offerDrawButton.setVisible(false);
+            offerDrawMenuItem.setVisible(false);
+        }
+        else {
+            if (!isPlayingPvp) {
+                isLanGameActive = false;
+                offerDrawButton.setVisible(false);
+                offerDrawMenuItem.setVisible(false);
+            } else {
+                isLanGameActive = true;
+                offerDrawButton.setVisible(false);
+                offerDrawMenuItem.setVisible(false);
+            }
+            chatHistoryTab.setDisable(true);
+            gameModel.initializeGame();
+            clearSelectionAndHighlights();
+            currentPlyPointer = -1;
+            updatePgnHeaderFields(gameModel.getPgnHeaders());
+            updateAllUIStates();
+            whiteCapturedPieces.clear();
+            blackCapturedPieces.clear();
 
-        if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor) {
-            requestEngineMove();
+            if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor) {
+                requestEngineMove();
+            }
         }
     }
 
@@ -579,6 +1026,18 @@ public class ChessController {
             }
         }
         updateAllUIStates();
+    }
+
+    @FXML
+    private void handleAutoFlipBoard() {
+        isAutoFlippingBoard = !isAutoFlippingBoard;
+        autoFlipBoardButton.setText("Auto Flip Board: " + (isAutoFlippingBoard ? "ON" : "OFF"));
+
+        if (isAutoFlippingBoard) {
+            boardIsFlipped = !(gameModel.getCurrentPlayer().getColor() == PieceColor.WHITE);
+            clearSelectionAndHighlights();
+            refreshBoardView();
+        }
     }
 
     @FXML
@@ -663,11 +1122,23 @@ public class ChessController {
         Optional<ButtonType> result = confirmation.showAndWait();
 
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            PieceColor currentPlayerColor = gameModel.getCurrentPlayer().getColor();
-            String winner = (currentPlayerColor == PieceColor.WHITE) ? "BLACK" : "WHITE";
-            System.out.println("Surrender initiated by " + currentPlayerColor);
+            PieceColor surrenderPieceColor;
+            if (isLanGameActive) {
+                surrenderPieceColor = myColor;
+                try {
+                    dataOutputStream.writeInt(myColor == PieceColor.WHITE ? NETWORK_SURRENDER_WHITE_CODE : NETWORK_SURRENDER_BLACK_CODE);
+                    dataOutputStream.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            else
+                surrenderPieceColor = gameModel.getCurrentPlayer().getColor();
+            String winner = (surrenderPieceColor == PieceColor.WHITE) ? "BLACK" : "WHITE";
+            System.out.println("Surrender initiated by " + surrenderPieceColor);
 
-            gameModel.surrender();
+            // Gọi phương thức surrender từ Game
+            gameModel.surrender(surrenderPieceColor);
 
             updateAllUIStates();
 
@@ -682,6 +1153,9 @@ public class ChessController {
         if (currentMode != GameMode.ANALYSIS && gameModel.getCurrentPlayer().getColor() != playerColor) {
             return;
         }
+
+        if (isLanGameActive && myColor != gameModel.getCurrentPlayer().getColor())
+            return;
 
         int modelRow = boardIsFlipped ? (Board.SIZE - 1 - viewRow) : viewRow;
         int modelCol = boardIsFlipped ? (Board.SIZE - 1 - viewCol) : viewCol;
@@ -721,21 +1195,97 @@ public class ChessController {
         }
     }
 
-    private void performMoveLogic(Move move) {
-        if (gameModel.canRedo()) {
-            Move nextMoveInRedoStack = gameModel.getRedoStack().peek();
+//    private void performMoveLogic(Move move) {
+//        // Capture the SAN for network transmission *before* making the move on the model
+//        String moveSanForNetwork = org.group13.chessgame.utils.NotationUtils.moveToAlgebraic(move, gameModel);
+//
+//        Move executedMove = gameModel.makeMove(move); // Apply the move to the model
+//        if (executedMove != null) {
+//            currentPlyPointer = gameModel.getPlayedMoveSequence().size() - 1;
+//            rebuildMoveHistoryView();
+//            refreshBoardView();
+//            updateTurnLabel();
+//            updateUndoRedoButtonStates();
+//            Piece captured = executedMove.getPieceCaptured();
+//            if (captured != null) {
+//                if (captured.getColor() == PieceColor.BLACK) {
+//                    whiteCapturedPieces.add(captured);
+//                } else {
+//                    blackCapturedPieces.add(captured);
+//                }
+//            }
+//            updateCapturedPiecesView();
+//            updateMoveHistoryViewHighlightAndScroll();
+//            playMoveSounds(executedMove);
+//
+//            // If it's a LAN game and this is MY move, send it to the opponent
+//            if (isLanGameActive && (executedMove.getPieceMoved().getColor() == myColor)) {
+//                try {
+//                    dataOutputStream.writeInt(NETWORK_MOVE_CODE);
+//                    dataOutputStream.writeUTF(moveSanForNetwork); // Send SAN string
+//                    dataOutputStream.flush();
+//                    System.out.println("Sent move to opponent: " + moveSanForNetwork);
+//                    updateStatusLabel("Waiting for opponent's move...");
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                    showAlert("Network Error", "Failed to send move to opponent: " + e.getMessage(), Alert.AlertType.ERROR);
+//                    // TODO: handle logic when failed to send move
+////                    resetToLocalGame(); // Fallback to local game on network error
+//                }
+//            }
+//
+//            updateStatusBasedOnGameState();
+//        } else {
+//            updateStatusLabel("Error: Invalid move attempted!");
+//            refreshBoardView();
+//        }
+//        clearSelectionAndHighlights();
+//    }
 
-            if (move.isEquivalent(nextMoveInRedoStack)) {
-                handleRedoMove();
-                return;
+    private void performMoveLogic(Move move) {
+        if (currentMode == GameMode.PLAYER_VS_COMPUTER || currentMode == GameMode.ANALYSIS) {
+            if (gameModel.canRedo()) {
+                Move nextMoveInRedoStack = gameModel.getRedoStack().peek();
+
+                if (move.isEquivalent(nextMoveInRedoStack)) {
+                    handleRedoMove();
+                    return;
+                }
             }
         }
+
+        // Capture the SAN for network transmission *before* making the move on the model
+        String moveSanForNetwork = org.group13.chessgame.utils.NotationUtils.moveToAlgebraic(move, gameModel);
+
         Move executedMove = gameModel.makeMove(move);
         if (executedMove != null) {
             if (currentMode == GameMode.PLAYER_VS_COMPUTER && !isGameOver()) {
                 requestEngineMove();
             }
             updateUIAfterMoving(executedMove);
+
+            if (currentMode == GameMode.ANALYSIS && isAutoFlippingBoard) {
+                boardIsFlipped = !(gameModel.getCurrentPlayer().getColor() == PieceColor.WHITE);
+                clearSelectionAndHighlights();
+                refreshBoardView();
+            }
+
+            System.out.println("isLanGameActive: " + String.valueOf(isLanGameActive));
+            if (isLanGameActive && (executedMove.getPieceMoved().getColor() == myColor)) {
+                try {
+                    dataOutputStream.writeInt(NETWORK_MOVE_CODE);
+                    dataOutputStream.writeUTF(moveSanForNetwork); // Send SAN string
+                    dataOutputStream.flush();
+                    System.out.println("Sent move to opponent: " + moveSanForNetwork);
+                    updateStatusLabel("Waiting for opponent's move...");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    showAlert("Network Error", "Failed to send move to opponent: " + e.getMessage(), Alert.AlertType.ERROR);
+                    // TODO: handle logic when failed to send move
+//                    resetToLocalGame(); // Fallback to local game on network error
+                }
+            }
+
         } else {
             updateStatusLabel("Error: Invalid move attempted!");
             refreshBoardView();
@@ -874,6 +1424,9 @@ public class ChessController {
 
         pieceImageView.setOnDragDetected(event -> {
             if (isGameOver()) return;
+
+            if (isLanGameActive && myColor != gameModel.getCurrentPlayer().getColor())
+                return;
 
             StackPane sourcePane = (StackPane) pieceImageView.getParent();
             setOverlayVisible(sourcePane, HOVER_OVERLAY_INDEX, false);
@@ -1207,7 +1760,7 @@ public class ChessController {
         }
     }
 
-    private enum GameMode {PLAYER_VS_PLAYER, PLAYER_VS_COMPUTER, ANALYSIS}
+    private enum GameMode {HOSTING, JOINING, PLAYER_VS_COMPUTER, ANALYSIS}
 
     private enum Difficulty {
         EASY(0), MEDIUM(100), HARD(5000);

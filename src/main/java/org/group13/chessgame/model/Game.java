@@ -327,11 +327,19 @@ public class Game {
         }
     }
 
-    public void surrender() {
+//    public void surrender() {
+//        if (gameState != GameState.ACTIVE && gameState != GameState.CHECK) {
+//            return;
+//        }
+//        gameState = (currentPlayer.getColor() == PieceColor.WHITE) ? GameState.WHITE_SURRENDERS : GameState.BLACK_SURRENDERS;
+//        System.out.println("After surrender - GameState: " + gameState);
+//    }
+
+    public void surrender(PieceColor pieceColor) {
         if (gameState != GameState.ACTIVE && gameState != GameState.CHECK) {
             return;
         }
-        gameState = (currentPlayer.getColor() == PieceColor.WHITE) ? GameState.WHITE_SURRENDERS : GameState.BLACK_SURRENDERS;
+        gameState = pieceColor == PieceColor.WHITE ? GameState.WHITE_SURRENDERS : GameState.BLACK_SURRENDERS;
         System.out.println("After surrender - GameState: " + gameState);
     }
 

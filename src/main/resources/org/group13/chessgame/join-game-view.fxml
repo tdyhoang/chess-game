@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+
+<VBox alignment="CENTER" spacing="20.0" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.group13.chessgame.controller.JoinGameController">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+    <children>
+        <Label text="Join a Chess Game" textAlignment="CENTER">
+            <font>
+                <Font name="System Bold" size="18.0" />
+            </font>
+        </Label>
+        <Text strokeType="OUTSIDE" strokeWidth="0.0" text="Connect to a host to play a chess game." textAlignment="CENTER" wrappingWidth="300.0" />
+        <HBox alignment="CENTER" spacing="10.0">
+            <children>
+                <Label text="Host IP:" />
+                <TextField fx:id="ipField" prefWidth="150.0" promptText="127.0.0.1" text="127.0.0.1" />
+            </children>
+        </HBox>
+        <HBox alignment="CENTER" spacing="10.0">
+            <children>
+                <Label text="Port:" />
+                <TextField fx:id="portField" prefWidth="150.0" promptText="5000" text="5000" />
+            </children>
+        </HBox>
+        <Text fx:id="statusText" fill="#4d4d4d" strokeType="OUTSIDE" strokeWidth="0.0" text="Enter the host's IP address and port number" textAlignment="CENTER" wrappingWidth="300.0" />
+        <HBox alignment="CENTER" spacing="20.0">
+            <children>
+                <Button fx:id="connectButton" defaultButton="true" mnemonicParsing="false" onAction="#handleConnect" text="Connect" />
+                <Button fx:id="cancelButton" cancelButton="true" mnemonicParsing="false" onAction="#handleCancel" text="Cancel" />
+            </children>
+        </HBox>
+    </children>
+</VBox>

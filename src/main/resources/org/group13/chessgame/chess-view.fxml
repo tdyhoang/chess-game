@@ -99,9 +99,18 @@
                         </GridPane>
                     </TitledPane>
                 </Tab>
+                <Tab fx:id="chatHistoryTab" text="Chat History">
+                    <VBox spacing="5.0">
+                        <ListView fx:id="chatHistoryListView" VBox.vgrow="ALWAYS"/>
+                        <HBox spacing="5.0">
+                            <TextField fx:id="chatInputField" onKeyPressed="#handleChatInputFieldKeyPressed" promptText="Type your message..." HBox.hgrow="ALWAYS"/>
+                            <Button fx:id="sendChatButton" text="Send" onAction="#handleSendChatMessage"/>
+                        </HBox>
+                    </VBox>
+                </Tab>
             </TabPane>
 
-            <Button fx:id="flipBoardButton" onAction="#handleFlipBoard" text="Flip Board" maxWidth="Infinity"/>
+            <Button fx:id="autoFlipBoardButton" onAction="#handleAutoFlipBoard" text="Auto Flip Board: OFF" maxWidth="Infinity"/>
         </VBox>
     </right>
 </BorderPane>
