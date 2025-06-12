@@ -8,25 +8,28 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import org.group13.chessgame.model.PieceColor;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Random;
 
 public class HostGameController {
 
+    private static final int NETWORK_COLOR_ASSIGNMENT_CODE = 6;
+    private PieceColor hostChosenColor;
+    private PieceColor finalHostColor;
+
     @FXML
     private TextField portField;
-
     @FXML
     private Text statusText;
-
     @FXML
     private Button startServerButton;
-
     @FXML
     private Button cancelButton;
-
     private ServerSocket serverSocket;
     private Socket clientSocket;
     private int port;
@@ -63,6 +66,18 @@ public class HostGameController {
                     try {
                         serverSocket = new ServerSocket(port);
                         clientSocket = serverSocket.accept(); // This blocks until a client connects
+
+                        finalHostColor = hostChosenColor;
+                        if (finalHostColor == null) {
+                            finalHostColor = new Random().nextBoolean() ? PieceColor.WHITE : PieceColor.BLACK;
+                        }
+                        PieceColor clientColor = finalHostColor.opposite();
+
+                        DataOutputStream dos = new DataOutputStream(clientSocket.getOutputStream());
+                        dos.writeInt(NETWORK_COLOR_ASSIGNMENT_CODE);
+                        dos.writeUTF(clientColor.name());
+                        dos.flush();
+                        System.out.println("Host: Assigned " + clientColor + " to client. My color is " + finalHostColor);
 
                         Platform.runLater(() -> {
                             statusText.setText("Player connected successfully!");
@@ -170,4 +185,12 @@ public class HostGameController {
     // public void initialize() {
     //     // Any initialization logic for the controller goes here
     // }
+
+    public void setHostChosenColor(PieceColor color) {
+        this.hostChosenColor = color;
+    }
+
+    public PieceColor getFinalHostColor() {
+        return finalHostColor;
+    }
 }

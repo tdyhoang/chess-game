@@ -8,13 +8,17 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import org.group13.chessgame.model.PieceColor;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
 public class JoinGameController {
+    private static final int NETWORK_COLOR_ASSIGNMENT_CODE = 6;
+    private PieceColor myColor;
 
     @FXML
     private TextField ipField;
@@ -70,13 +74,24 @@ public class JoinGameController {
                     try {
                         clientSocket = new Socket(ipAddress, port); // This blocks until connected or fails
 
-                        Platform.runLater(() -> {
-                            statusText.setText("Connected successfully to host!");
-                            System.out.println("Client: Connected successfully to host!");
-                            connectedSuccessfully = true; // Mark success
-                            Stage stage = (Stage) connectButton.getScene().getWindow();
-                            stage.close(); // Close dialog on success
-                        });
+                        DataInputStream dis = new DataInputStream(clientSocket.getInputStream());
+                        int messageType = dis.readInt();
+
+                        if (messageType == NETWORK_COLOR_ASSIGNMENT_CODE) {
+                            String colorName = dis.readUTF();
+                            myColor = PieceColor.valueOf(colorName);
+                            System.out.println("Client: Received color assignment. My color is " + myColor);
+
+                            Platform.runLater(() -> {
+                                statusText.setText("Connected successfully to host!");
+                                System.out.println("Client: Connected successfully to host!");
+                                connectedSuccessfully = true; // Mark success
+                                Stage stage = (Stage) connectButton.getScene().getWindow();
+                                stage.close(); // Close dialog on success
+                            });
+                        } else {
+                            throw new IOException("Protocol Error: Expected color assignment, but got type " + messageType);
+                        }
 
                     } catch (ConnectException e) {
                         Platform.runLater(() -> {
@@ -152,5 +167,9 @@ public class JoinGameController {
 
     public boolean isConnectedSuccessfully() {
         return connectedSuccessfully;
+    }
+
+    public PieceColor getMyColor() {
+        return myColor;
     }
 }
