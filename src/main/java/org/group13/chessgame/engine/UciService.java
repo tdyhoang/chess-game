@@ -10,9 +10,14 @@ public class UciService {
     private BufferedWriter writer;
     private CompletableFuture<String> bestMoveFuture;
     private CompletableFuture<Boolean> startupFuture;
+    private String engineName = "Unknown Engine";
 
     public UciService(String enginePath) {
         this.enginePath = enginePath;
+    }
+
+    public String getEngineName() {
+        return engineName;
     }
 
     public CompletableFuture<Boolean> startEngine() {
@@ -42,6 +47,9 @@ public class UciService {
             String line;
             while ((line = reader.readLine()) != null) {
                 System.out.println("ENGINE >> " + line);
+                if (line.startsWith("id name")) {
+                    this.engineName = line.substring(8).trim();
+                }
                 if (line.equals("uciok")) {
                     sendCommand("isready");
                 }

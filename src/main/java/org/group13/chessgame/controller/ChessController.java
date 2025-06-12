@@ -831,6 +831,22 @@ public class ChessController {
 
     @FXML
     private void handleNewGame() {
+        if (gameModel.canUndo()) {
+            Alert confirmSave = new Alert(Alert.AlertType.CONFIRMATION, "Do you want to save the current game before starting a new one?", ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
+            confirmSave.setTitle("Save Current Game?");
+            Optional<ButtonType> result = confirmSave.showAndWait();
+
+            if (result.isPresent()) {
+                if (result.get() == ButtonType.YES) {
+                    handleSaveGame();
+                } else if (result.get() == ButtonType.CANCEL) {
+                    return;
+                }
+            } else {
+                return;
+            }
+        }
+
         Optional<GameSetupResult> result = showGameSetupDialog();
         result.ifPresent(setup -> startNewGame(setup.mode, setup.playerColor, setup.difficulty));
     }
@@ -958,6 +974,7 @@ public class ChessController {
         this.currentDifficulty = difficulty;
 
         this.boardIsFlipped = playerSide == PieceColor.BLACK;
+        prepareHeadersForNewGame(gameModel.getPgnHeaders());
 
         if (currentMode == GameMode.HOSTING) {
             handleHostGame();
@@ -998,6 +1015,33 @@ public class ChessController {
         }
     }
 
+    private void prepareHeadersForNewGame(PgnHeaders headers) {
+        String engineDisplayName = (uciService != null) ? uciService.getEngineName() : "Computer";
+        String currentPlayerName = "Player";
+
+        try {
+            int currentRound = Integer.parseInt(headers.getRound());
+            headers.setRound(String.valueOf(currentRound + 1));
+        } catch (NumberFormatException e) {
+            headers.setRound("1");
+        }
+        datePicker.setValue(LocalDate.now());
+        resultLabel.setText("*");
+
+        if (currentMode == GameMode.PLAYER_VS_COMPUTER) {
+            if (playerColor == PieceColor.WHITE) {
+                whitePlayerField.setText(currentPlayerName);
+                blackPlayerField.setText(engineDisplayName);
+            } else {
+                whitePlayerField.setText(engineDisplayName);
+                blackPlayerField.setText(currentPlayerName);
+            }
+        } else {
+            if (whitePlayerField.getText().equals(engineDisplayName)) whitePlayerField.setText("White Player");
+            if (blackPlayerField.getText().equals(engineDisplayName)) blackPlayerField.setText("Black Player");
+        }
+    }
+
     @FXML
     private void handleUndoMove() {
         clearSelectionAndHighlights();
@@ -1012,6 +1056,10 @@ public class ChessController {
             }
         }
         updateAllUIStates();
+
+        if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor && !isGameOver()) {
+            requestEngineMove();
+        }
     }
 
     @FXML
@@ -1026,6 +1074,10 @@ public class ChessController {
             }
         }
         updateAllUIStates();
+
+        if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor && !isGameOver()) {
+            requestEngineMove();
+        }
     }
 
     @FXML
@@ -1083,6 +1135,10 @@ public class ChessController {
                 updatePgnHeaderFields(gameModel.getPgnHeaders());
                 updateAllUIStates();
                 updateStatusLabel("Game loaded from PGN: " + file.getName());
+
+                if (currentMode == GameMode.PLAYER_VS_COMPUTER && gameModel.getCurrentPlayer().getColor() != playerColor && !isGameOver()) {
+                    requestEngineMove();
+                }
             } catch (IOException | PgnParseException e) {
                 e.printStackTrace();
             } catch (Exception e) {
