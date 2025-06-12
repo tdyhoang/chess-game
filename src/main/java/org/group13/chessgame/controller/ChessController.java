@@ -6,7 +6,6 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
@@ -52,21 +51,15 @@ public class ChessController {
     private static final int DRAG_OVERLAY_INDEX = 3;
     private static final int PIECE_IMAGE_VIEW_INDEX = 4;
     private static final int MOVE_INDICATOR_INDEX = 5;
+    // --- Network Communication Codes (Re-introducing for clarity) ---
+    private static final int NETWORK_MOVE_CODE = 0;
+    private static final int NETWORK_SURRENDER_WHITE_CODE = 1;
+    private static final int NETWORK_SURRENDER_BLACK_CODE = 2;
+    private static final int NETWORK_CHAT_CODE = 3;
     private final List<Piece> whiteCapturedPieces = new ArrayList<>();
     private final List<Piece> blackCapturedPieces = new ArrayList<>();
     private final ObservableList<MovePairDisplay> moveHistoryObservableList = FXCollections.observableArrayList();
     private final ObservableList<String> chatHistoryObservableList = FXCollections.observableArrayList();
-
-    // --- Network Communication Codes (Re-introducing for clarity) ---
-    private static final int NETWORK_MOVE_CODE = 0;
-    private static final int NETWORK_SURRENDER_WHITE_CODE = 1;
-    private static final int NETWORK_SURRENDER_BLACK_CODE = 2;;
-    private static final int NETWORK_CHAT_CODE = 3;
-    private static final int NETWORK_OFFER_DRAW_CODE = 4;
-    private static final int NETWORK_ACCEPT_OFFER_DRAW_CODE = 5;
-
-
-
     private int currentPlyPointer = -1;
     @FXML
     private BorderPane rootPane;
@@ -147,6 +140,7 @@ public class ChessController {
 
     // Network related variables
     private PieceColor myColor;
+    private PieceColor hostColor;
     private boolean isLanGameActive = false;
     private Socket gameSocket; // This will be the socket for the actual game communication
     private DataInputStream dataInputStream;
@@ -249,7 +243,7 @@ public class ChessController {
 //        chatHistoryTab.setDisable(false);
         this.gameSocket = gameSocket;
         this.isLanGameActive = true;
-        this.myColor = isHost ? PieceColor.WHITE : PieceColor.BLACK;
+        this.myColor = isHost ? hostColor == PieceColor.WHITE ? PieceColor.WHITE : PieceColor.BLACK : hostColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
 
         try {
             this.dataOutputStream = new DataOutputStream(gameSocket.getOutputStream());
@@ -286,7 +280,6 @@ public class ChessController {
         redoMenuItem.setVisible(false);
         undoMoveButton.setVisible(false);
         redoMoveButton.setVisible(false);
-
 
 
         // If it's not my turn, disable input until a move is received
@@ -333,33 +326,7 @@ public class ChessController {
                     while (!isCancelled() && gameSocket != null && !gameSocket.isClosed()) {
                         // Read the move from the opponent as a string (e.g., SAN or FEN)
                         int messageType = dataInputStream.readInt();
-                        if (messageType == NETWORK_OFFER_DRAW_CODE) {
-                            Platform.runLater(() -> {
-                                Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-                                confirmation.setTitle("Draw offer");
-                                confirmation.setHeaderText(null);
-                                confirmation.setContentText("Do you to accept opponent's draw offer?");
-                                Optional<ButtonType> result = confirmation.showAndWait();
-
-                                if (result.isPresent() && result.get() == ButtonType.OK) {
-                                    gameModel.setGameState(Game.GameState.DRAW_BY_AGREEMENT);
-                                    updateStatusBasedOnGameState();
-                                    try {
-                                        dataOutputStream.writeInt(NETWORK_ACCEPT_OFFER_DRAW_CODE);
-                                        dataOutputStream.flush();
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                            });
-                        }
-                        else if (messageType == NETWORK_ACCEPT_OFFER_DRAW_CODE) {
-                            Platform.runLater(() -> {
-                                gameModel.setGameState(Game.GameState.DRAW_BY_AGREEMENT);
-                                updateStatusBasedOnGameState();
-                            });
-                        }
-                        else if (messageType == NETWORK_MOVE_CODE) {
+                        if (messageType == NETWORK_MOVE_CODE) {
                             String opponentMoveSan = dataInputStream.readUTF();
                             System.out.println("Received move from opponent: " + opponentMoveSan);
 
@@ -380,8 +347,7 @@ public class ChessController {
                                     showAlert("Network Error", "Error applying opponent's move: " + e.getMessage(), Alert.AlertType.ERROR);
                                 }
                             });
-                        }
-                        else if (messageType == NETWORK_SURRENDER_WHITE_CODE) {
+                        } else if (messageType == NETWORK_SURRENDER_WHITE_CODE) {
                             Platform.runLater(() -> {
                                 updateStatusBasedOnGameState();
                                 surrenderButton.setDisable(true);
@@ -401,8 +367,7 @@ public class ChessController {
 //                                closeNetworkConnections();
                             });
 
-                        }
-                        else if (messageType == NETWORK_SURRENDER_BLACK_CODE) {
+                        } else if (messageType == NETWORK_SURRENDER_BLACK_CODE) {
                             Platform.runLater(() -> {
                                 updateStatusBasedOnGameState();
                                 surrenderButton.setDisable(true);
@@ -421,8 +386,7 @@ public class ChessController {
                                 playSound(endGameSoundPlayer);
 //                                closeNetworkConnections();
                             });
-                        }
-                        else if (messageType == NETWORK_CHAT_CODE) {
+                        } else if (messageType == NETWORK_CHAT_CODE) {
                             String messageContent = dataInputStream.readUTF();
                             chatHistoryListView.getItems().add(messageContent);
                             chatHistoryListView.refresh();
@@ -798,13 +762,9 @@ public class ChessController {
             case FIFTY_MOVE_DRAW -> "Draw by 50-move rule.";
             case THREEFOLD_REPETITION_DRAW -> "Draw by threefold repetition.";
             case INSUFFICIENT_MATERIAL_DRAW -> "Draw by insufficient material.";
-            case DRAW_BY_AGREEMENT -> "Both sides agreed to draw.";
             default -> "";
         };
         statusLabel.setText(status);
-        if (isGameOver()) {
-            turnLabel.setText("Game over!");
-        }
         resultLabel.setText(getPgnResult(gameModel.getGameState()));
         if (currentState != Game.GameState.ACTIVE && currentState != Game.GameState.CHECK) {
             Platform.runLater(() -> {
@@ -831,8 +791,8 @@ public class ChessController {
         boolean isGameOver = isGameOver();
         boolean isPlayerTurn = currentMode == GameMode.ANALYSIS || gameModel.getCurrentPlayer().getColor() == playerColor;
 
-        offerDrawMenuItem.setDisable(isGameOver || !(currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
-        offerDrawButton.setDisable(isGameOver || !(currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
+        offerDrawMenuItem.setDisable(!isGameOver && (currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
+        offerDrawButton.setDisable(!isGameOver && (currentMode == GameMode.HOSTING || currentMode == GameMode.JOINING || currentMode == GameMode.ANALYSIS));
 
         surrenderMenuItem.setDisable(isGameOver || !isPlayerTurn);
         surrenderButton.setDisable(isGameOver || !isPlayerTurn);
@@ -964,16 +924,13 @@ public class ChessController {
                 if (hostGameRadio.isSelected()) {
                     isPlayingPvp = true;
                     selectedMode = GameMode.HOSTING;
-                }
-                else if (joinGameRadio.isSelected()) {
+                } else if (joinGameRadio.isSelected()) {
                     isPlayingPvp = true;
                     selectedMode = GameMode.JOINING;
-                }
-                else if (pvcRadio.isSelected()) {
+                } else if (pvcRadio.isSelected()) {
                     selectedMode = GameMode.PLAYER_VS_COMPUTER;
                     isPlayingPvp = false;
-                }
-                else {
+                } else {
                     selectedMode = GameMode.ANALYSIS;
                     isPlayingPvp = false;
                 }
@@ -984,8 +941,7 @@ public class ChessController {
                     System.out.println(randomNumber);
                     if (randomNumber == 0) {
                         selectedColor = PieceColor.WHITE;
-                    } else if (randomNumber == 1)
-                        selectedColor = PieceColor.BLACK;
+                    } else if (randomNumber == 1) selectedColor = PieceColor.BLACK;
                 } else {
                     selectedColor = whiteRadio.isSelected() ? PieceColor.WHITE : PieceColor.BLACK;
                 }
@@ -1011,24 +967,28 @@ public class ChessController {
         prepareHeadersForNewGame(gameModel.getPgnHeaders());
 
         if (currentMode == GameMode.HOSTING) {
+            this.hostColor = playerSide;
             handleHostGame();
             isPlayingPvp = true;
             chatHistoryTab.setDisable(false);
-        }
-        else if (currentMode == GameMode.JOINING) {
+            offerDrawButton.setVisible(false);
+            offerDrawMenuItem.setVisible(false);
+        } else if (currentMode == GameMode.JOINING) {
+            this.playerColor = hostColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
             handleJoinGame();
             isPlayingPvp = true;
             chatHistoryTab.setDisable(false);
-        }
-        else {
+            offerDrawButton.setVisible(false);
+            offerDrawMenuItem.setVisible(false);
+        } else {
             if (!isPlayingPvp) {
                 isLanGameActive = false;
-                offerDrawButton.setDisable(true);
-                offerDrawMenuItem.setDisable(true);
+                offerDrawButton.setVisible(false);
+                offerDrawMenuItem.setVisible(false);
             } else {
                 isLanGameActive = true;
-                offerDrawButton.setDisable(false);
-                offerDrawMenuItem.setDisable(false);
+                offerDrawButton.setVisible(false);
+                offerDrawMenuItem.setVisible(false);
             }
             chatHistoryTab.setDisable(true);
             gameModel.initializeGame();
@@ -1192,15 +1152,6 @@ public class ChessController {
 
     @FXML
     private void handleOfferDraw() {
-        if (isLanGameActive) {
-            try {
-                dataOutputStream.writeInt(NETWORK_OFFER_DRAW_CODE);
-                dataOutputStream.flush();
-                showAlert("Draw offer", "Draw offer sent.", Alert.AlertType.INFORMATION);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     @FXML
@@ -1226,9 +1177,7 @@ public class ChessController {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
-            else
-                surrenderPieceColor = gameModel.getCurrentPlayer().getColor();
+            } else surrenderPieceColor = gameModel.getCurrentPlayer().getColor();
             String winner = (surrenderPieceColor == PieceColor.WHITE) ? "BLACK" : "WHITE";
             System.out.println("Surrender initiated by " + surrenderPieceColor);
 
@@ -1249,8 +1198,7 @@ public class ChessController {
             return;
         }
 
-        if (isLanGameActive && myColor != gameModel.getCurrentPlayer().getColor())
-            return;
+        if (isLanGameActive && myColor != gameModel.getCurrentPlayer().getColor()) return;
 
         int modelRow = boardIsFlipped ? (Board.SIZE - 1 - viewRow) : viewRow;
         int modelCol = boardIsFlipped ? (Board.SIZE - 1 - viewCol) : viewCol;
@@ -1325,7 +1273,8 @@ public class ChessController {
 //                    e.printStackTrace();
 //                    showAlert("Network Error", "Failed to send move to opponent: " + e.getMessage(), Alert.AlertType.ERROR);
 //                    // TODO: handle logic when failed to send move
-////                    resetToLocalGame(); // Fallback to local game on network error
+
+    /// /                    resetToLocalGame(); // Fallback to local game on network error
 //                }
 //            }
 //
@@ -1336,7 +1285,6 @@ public class ChessController {
 //        }
 //        clearSelectionAndHighlights();
 //    }
-
     private void performMoveLogic(Move move) {
         if (currentMode == GameMode.PLAYER_VS_COMPUTER || currentMode == GameMode.ANALYSIS) {
             if (gameModel.canRedo()) {
@@ -1365,7 +1313,7 @@ public class ChessController {
                 refreshBoardView();
             }
 
-            System.out.println("isLanGameActive: " + String.valueOf(isLanGameActive));
+            System.out.println("isLanGameActive: " + isLanGameActive);
             if (isLanGameActive && (executedMove.getPieceMoved().getColor() == myColor)) {
                 try {
                     dataOutputStream.writeInt(NETWORK_MOVE_CODE);
@@ -1520,8 +1468,7 @@ public class ChessController {
         pieceImageView.setOnDragDetected(event -> {
             if (isGameOver()) return;
 
-            if (isLanGameActive && myColor != gameModel.getCurrentPlayer().getColor())
-                return;
+            if (isLanGameActive && myColor != gameModel.getCurrentPlayer().getColor()) return;
 
             StackPane sourcePane = (StackPane) pieceImageView.getParent();
             setOverlayVisible(sourcePane, HOVER_OVERLAY_INDEX, false);
