@@ -58,6 +58,7 @@ public class ChessController {
     private static final int NETWORK_CHAT_CODE = 3;
     private static final int NETWORK_OFFER_DRAW_CODE = 4;
     private static final int NETWORK_ACCEPT_OFFER_DRAW_CODE = 5;
+    private static final int NETWORK_COLOR_ASSIGNMENT_CODE = 6;
 
     private final List<Piece> whiteCapturedPieces = new ArrayList<>();
     private final List<Piece> blackCapturedPieces = new ArrayList<>();
@@ -143,7 +144,6 @@ public class ChessController {
 
     // Network related variables
     private PieceColor myColor;
-    private PieceColor hostColor;
     private boolean isLanGameActive = false;
     private Socket gameSocket; // This will be the socket for the actual game communication
     private DataInputStream dataInputStream;
@@ -151,11 +151,13 @@ public class ChessController {
     private Task<Void> networkListenerTask; // Task to listen for incoming moves
     private boolean isPlayingPvp = false;
 
-    private void handleHostGame() {
+    private void handleHostGame(PieceColor hostChosenColor) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/group13/chessgame/host-game-view.fxml"));
             Parent hostGameRoot = loader.load();
             HostGameController hostGameController = loader.getController(); // Get controller reference early
+
+            hostGameController.setHostChosenColor(hostChosenColor);
 
             Stage hostGameStage = new Stage();
             hostGameStage.setTitle("Host Chess Game");
@@ -171,6 +173,7 @@ public class ChessController {
             // After the host game dialog closes, check if a connection was made
             if (hostGameController.isServerStartedSuccessfully()) {
                 gameSocket = hostGameController.getClientSocket();
+                myColor = hostGameController.getFinalHostColor();
                 if (gameSocket != null && !gameSocket.isClosed()) {
                     System.out.println("ChessController: Host server successfully started and client connected. Game ready!");
                     initializeGameWithNetwork(gameSocket, true);
@@ -210,6 +213,7 @@ public class ChessController {
             // After the join game dialog closes, check if a connection was made
             if (joinGameController.isConnectedSuccessfully()) {
                 gameSocket = joinGameController.getClientSocket();
+                myColor = joinGameController.getMyColor();
                 if (gameSocket != null && !gameSocket.isClosed()) {
                     System.out.println("ChessController: Successfully connected to host. Game ready!");
                     initializeGameWithNetwork(gameSocket, false);
@@ -248,7 +252,6 @@ public class ChessController {
 //        chatHistoryTab.setDisable(false);
         this.gameSocket = gameSocket;
         this.isLanGameActive = true;
-        this.myColor = isHost ? hostColor == PieceColor.WHITE ? PieceColor.WHITE : PieceColor.BLACK : hostColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
 
         try {
             this.dataOutputStream = new DataOutputStream(gameSocket.getOutputStream());
@@ -350,14 +353,12 @@ public class ChessController {
                                     }
                                 }
                             });
-                        }
-                        else if (messageType == NETWORK_ACCEPT_OFFER_DRAW_CODE) {
+                        } else if (messageType == NETWORK_ACCEPT_OFFER_DRAW_CODE) {
                             Platform.runLater(() -> {
                                 gameModel.setGameState(Game.GameState.DRAW_BY_AGREEMENT);
                                 updateStatusBasedOnGameState();
                             });
-                        }
-                        else if (messageType == NETWORK_MOVE_CODE) {
+                        } else if (messageType == NETWORK_MOVE_CODE) {
                             String opponentMoveSan = dataInputStream.readUTF();
                             System.out.println("Received move from opponent: " + opponentMoveSan);
 
@@ -975,9 +976,7 @@ public class ChessController {
                     Random random = new Random();
                     int randomNumber = random.nextInt(2);
                     System.out.println(randomNumber);
-                    if (randomNumber == 0) {
-                        selectedColor = PieceColor.WHITE;
-                    } else if (randomNumber == 1) selectedColor = PieceColor.BLACK;
+                    if (randomNumber == 1) selectedColor = PieceColor.BLACK;
                 } else {
                     selectedColor = whiteRadio.isSelected() ? PieceColor.WHITE : PieceColor.BLACK;
                 }
@@ -996,6 +995,7 @@ public class ChessController {
 
     private void startNewGame(GameMode mode, PieceColor playerSide, Difficulty difficulty) {
         this.currentMode = mode;
+        this.isPlayingPvp = mode == GameMode.HOSTING || mode == GameMode.JOINING;
         this.playerColor = playerSide;
         this.currentDifficulty = difficulty;
 
@@ -1003,16 +1003,12 @@ public class ChessController {
         prepareHeadersForNewGame(gameModel.getPgnHeaders());
 
         if (currentMode == GameMode.HOSTING) {
-            this.hostColor = playerSide;
-            handleHostGame();
-            isPlayingPvp = true;
+            handleHostGame(playerSide);
             chatHistoryTab.setDisable(false);
             offerDrawButton.setDisable(false);
             offerDrawMenuItem.setDisable(false);
         } else if (currentMode == GameMode.JOINING) {
-            this.playerColor = hostColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
             handleJoinGame();
-            isPlayingPvp = true;
             chatHistoryTab.setDisable(false);
             offerDrawButton.setDisable(false);
             offerDrawMenuItem.setDisable(false);
