@@ -182,6 +182,7 @@ public class ChessController {
                     showAlert("Connection Error", "Host server started, but failed to establish client connection.", Alert.AlertType.ERROR);
                 }
             } else {
+                isPlayingPvp = false;
                 System.out.println("ChessController: Host game setup cancelled or server failed to start.");
                 showAlert("Game Setup", "Host game setup was cancelled or failed to start.", Alert.AlertType.INFORMATION);
             }
@@ -230,6 +231,7 @@ public class ChessController {
             }
 
         } catch (IOException e) {
+            isPlayingPvp = false;
             e.printStackTrace();
             showAlert("Error", "Could not load Join Game view: " + e.getMessage(), Alert.AlertType.ERROR);
         }
@@ -995,7 +997,6 @@ public class ChessController {
 
     private void startNewGame(GameMode mode, PieceColor playerSide, Difficulty difficulty) {
         this.currentMode = mode;
-        this.isPlayingPvp = mode == GameMode.HOSTING || mode == GameMode.JOINING;
         this.playerColor = playerSide;
         this.currentDifficulty = difficulty;
 
